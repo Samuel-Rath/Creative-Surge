@@ -2,17 +2,316 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Creative Surge</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>Creative Surge - Minimal Single File</title>
+  <style>
+    /* Force page and body to fill the entire screen and be black */
+    html, body {
+      margin: 0; 
+      padding: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: #000; 
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+
+    /* Container that holds the canvas, score, and overlay */
+    #gameContainer {
+      position: absolute; 
+      top: 0; 
+      left: 0;
+      width: 100%; 
+      height: 100%;
+      background: #000;
+    }
+
+    /* The 3D canvas fills #gameContainer */
+    #gameCanvas {
+      position: absolute;
+      top: 0; 
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Score in top-left, large white text, above the canvas */
+    #score {
+      position: absolute;
+      top: 10px; 
+      left: 10px;
+      z-index: 999;
+      font-size: 24px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    /* Semi-transparent overlay for start and game-over states */
+    #overlay {
+      position: absolute;
+      top: 0; 
+      left: 0;
+      width: 100%; 
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5); 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    /* Text in the centre of the overlay */
+    #overlayText {
+      font-size: 28px;
+      text-align: center;
+      white-space: pre-line; /* allows multi-line text using \n */
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
-  <!-- UI Overlay -->
-  <div id="ui">
+  <div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Scoreboard at top-left -->
     <div id="score">Score: 0</div>
-    <div id="gameOver" style="display:none;">Game Over! Press Space to Restart</div>
+
+    <!-- Overlay for start/game-over messages -->
+    <div id="overlay">
+      <div id="overlayText">Press Spacebar to Play</div>
+    </div>
   </div>
-  <canvas id="gameCanvas"></canvas>
+
+  <!-- Three.js library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="main.js"></script>
+  <script>
+  /***********************************************
+   * Minimal Creative Surge Code
+   ***********************************************/
+
+  let scene, camera, renderer;
+  let player, targetX;
+  let obstacles = [];
+  let orbs = [];
+  let score = 0;
+  let gameSpeed = 0.1;
+  let lastTime = performance.now();
+  let obstacleTimer = 1500;
+  let orbTimer = 3000;
+  let gameState = "start";  // "start", "playing", or "gameover"
+
+  const baseObstacleInterval = 1500;
+  const baseOrbInterval = 3000;
+
+  // Local high score
+  let localHighScore = Number(localStorage.getItem("highscore")) || 0;
+
+  function init() {
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 20);
+
+    const canvas = document.getElementById("gameCanvas");
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(0, 50, 50);
+    scene.add(directionalLight);
+
+    // Ground plane
+    const groundGeo = new THREE.PlaneGeometry(20, 1000);
+    const groundMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.z = -500;
+    scene.add(ground);
+
+    // Player
+    const playerGeo = new THREE.BoxGeometry(1, 1, 1);
+    const playerMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    player = new THREE.Mesh(playerGeo, playerMat);
+    player.position.set(0, 0.5, 10);
+    scene.add(player);
+    targetX = player.position.x;
+
+    // Key listener
+    document.addEventListener("keydown", onKeyDown);
+
+    // Start overlay text with local high score
+    const overlayText = document.getElementById("overlayText");
+    overlayText.innerText = `Press Spacebar to Play\nYour High Score: ${localHighScore}`;
+
+    animate();
+  }
+
+  function onKeyDown(e) {
+    const overlay = document.getElementById("overlay");
+    const overlayText = document.getElementById("overlayText");
+
+    if (gameState === "start") {
+      if (e.key === " ") {
+        gameState = "playing";
+        overlay.style.display = "none";
+      }
+    } else if (gameState === "playing") {
+      const step = 1;
+      if (e.key === "ArrowLeft" || e.key === "a") {
+        targetX = Math.max(targetX - step, -8);
+      } else if (e.key === "ArrowRight" || e.key === "d") {
+        targetX = Math.min(targetX + step, 8);
+      }
+    } else if (gameState === "gameover") {
+      if (e.key === " ") {
+        restartGame();
+        overlay.style.display = "none";
+      }
+    }
+  }
+
+  function generateObstacle() {
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const obs = new THREE.Mesh(geo, mat);
+    obs.position.x = (Math.random() - 0.5) * 16;
+    obs.position.y = 0.5;
+    obs.position.z = player.position.z - 50;
+    obs.rotation.x = Math.random() * Math.PI;
+    obs.rotation.y = Math.random() * Math.PI;
+    scene.add(obs);
+    obstacles.push(obs);
+  }
+
+  function generateOrb() {
+    const geo = new THREE.SphereGeometry(0.5, 16, 16);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    const orb = new THREE.Mesh(geo, mat);
+    orb.position.x = (Math.random() - 0.5) * 16;
+    orb.position.y = 0.5;
+    orb.position.z = player.position.z - 70;
+    scene.add(orb);
+    orbs.push(orb);
+  }
+
+  function checkCollisions(obj) {
+    const playerBox = new THREE.Box3().setFromObject(player);
+    const objBox = new THREE.Box3().setFromObject(obj);
+    return playerBox.intersectsBox(objBox);
+  }
+
+  function triggerGameOver() {
+    gameState = "gameover";
+    if (Math.floor(score) > localHighScore) {
+      localHighScore = Math.floor(score);
+      localStorage.setItem("highscore", localHighScore);
+    }
+    const overlay = document.getElementById("overlay");
+    const overlayText = document.getElementById("overlayText");
+    overlayText.innerText = 
+      `Game Over!\n` +
+      `Final Score: ${Math.floor(score)}\n` +
+      `Your High Score: ${localHighScore}\n\n` +
+      `Press Spacebar to Try Again`;
+    overlay.style.display = "flex";
+  }
+
+  function restartGame() {
+    gameState = "playing";
+    score = 0;
+    gameSpeed = 0.1;
+
+    obstacles.forEach(obs => scene.remove(obs));
+    obstacles = [];
+    orbs.forEach(orb => scene.remove(orb));
+    orbs = [];
+
+    player.position.set(0, 0.5, 10);
+    targetX = player.position.x;
+
+    lastTime = performance.now();
+    obstacleTimer = baseObstacleInterval;
+    orbTimer = baseOrbInterval;
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+
+    const currentTime = performance.now();
+    const deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+
+    if (gameState === "playing") {
+      // Update score
+      score += gameSpeed * (deltaTime / 16.67);
+      document.getElementById("score").innerText = "Score: " + Math.floor(score);
+
+      // Move player smoothly
+      player.position.x += (targetX - player.position.x) * 0.1;
+      // Camera follows player horizontally
+      camera.position.x += (player.position.x - camera.position.x) * 0.05;
+
+      // Update obstacles
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.position.z += gameSpeed * (deltaTime / 16.67);
+        obs.rotation.x += 0.01 * (deltaTime / 16.67);
+        obs.rotation.y += 0.01 * (deltaTime / 16.67);
+
+        if (obs.position.z > camera.position.z + 10) {
+          scene.remove(obs);
+          obstacles.splice(i, 1);
+        } else if (checkCollisions(obs)) {
+          triggerGameOver();
+        }
+      }
+
+      // Update orbs
+      for (let i = orbs.length - 1; i >= 0; i--) {
+        const orb = orbs[i];
+        orb.position.z += gameSpeed * (deltaTime / 16.67);
+        orb.rotation.y += 0.02 * (deltaTime / 16.67);
+        if (orb.position.z > camera.position.z + 10) {
+          scene.remove(orb);
+          orbs.splice(i, 1);
+        } else if (checkCollisions(orb)) {
+          score += 50;
+          scene.remove(orb);
+          orbs.splice(i, 1);
+        }
+      }
+
+      // Spawning logic
+      obstacleTimer -= deltaTime;
+      orbTimer -= deltaTime;
+      if (obstacleTimer <= 0) {
+        generateObstacle();
+        obstacleTimer = Math.max(500, baseObstacleInterval - Math.floor(score / 10));
+      }
+      if (orbTimer <= 0) {
+        generateOrb();
+        orbTimer = Math.max(1000, baseOrbInterval - Math.floor(score / 20));
+      }
+
+      // Increase difficulty
+      gameSpeed += 0.0001 * deltaTime;
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  // Handle resize
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  // Start
+  init();
+  </script>
 </body>
 </html>
