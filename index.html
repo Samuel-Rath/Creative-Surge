@@ -44,6 +44,7 @@
       font-size: 24px;
       font-weight: bold;
       color: #fff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
     }
 
     /* Semi-transparent overlay for start and game-over states */
@@ -53,7 +54,7 @@
       left: 0;
       width: 100%; 
       height: 100%;
-      background: rgba(0, 0, 0, 0.5); 
+      background: rgba(0, 0, 0, 0.7); /* darker overlay for more contrast */
       display: flex; 
       align-items: center; 
       justify-content: center;
@@ -62,10 +63,13 @@
 
     /* Text in the centre of the overlay */
     #overlayText {
-      font-size: 28px;
+      font-size: 32px;
       text-align: center;
       white-space: pre-line; /* allows multi-line text using \n */
       color: #fff;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+      line-height: 1.4;
+      max-width: 80%;
     }
   </style>
 </head>
@@ -78,7 +82,18 @@
 
     <!-- Overlay for start/game-over messages -->
     <div id="overlay">
-      <div id="overlayText">Press Spacebar to Play</div>
+      <div id="overlayText">
+Welcome to Creative Surge!
+
+Press Spacebar to Start
+
+Instructions:
+- Use Left/Right arrows or A/D to move
+- Collect yellow orbs for bonus points
+- Avoid red obstacles
+
+Your High Score: 0
+      </div>
     </div>
   </div>
 
@@ -88,7 +103,6 @@
   /***********************************************
    * Minimal Creative Surge Code
    ***********************************************/
-
   let scene, camera, renderer;
   let player, targetX;
   let obstacles = [];
@@ -124,11 +138,15 @@
     scene.add(directionalLight);
 
     // Ground plane
+    // Create a plane geometry for the ground (road) with a length of 1000 units.
+    // After rotation, the 1000-unit length extends along the z-axis.
+    // To make the road extend to the player (positioned at z=10), we set the ground's centre such that:
+    // centre + (1000 / 2) = 10  => centre = 10 - 500 = -490.
     const groundGeo = new THREE.PlaneGeometry(20, 1000);
     const groundMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.z = -500;
+    ground.position.z = -490;
     scene.add(ground);
 
     // Player
@@ -142,9 +160,18 @@
     // Key listener
     document.addEventListener("keydown", onKeyDown);
 
-    // Start overlay text with local high score
-    const overlayText = document.getElementById("overlayText");
-    overlayText.innerText = `Press Spacebar to Play\nYour High Score: ${localHighScore}`;
+    // Update start overlay text with local high score if available
+    if (gameState === "start") {
+      const overlayText = document.getElementById("overlayText");
+      overlayText.innerText = 
+        `Welcome to Creative Surge!\n\n` +
+        `Press Spacebar to Start\n\n` +
+        `Instructions:\n` +
+        `- Use Left/Right arrows or A/D to move\n` +
+        `- Collect yellow orbs for bonus points\n` +
+        `- Avoid red obstacles\n\n` +
+        `Your High Score: ${localHighScore}`;
+    }
 
     animate();
   }
@@ -212,10 +239,10 @@
     const overlay = document.getElementById("overlay");
     const overlayText = document.getElementById("overlayText");
     overlayText.innerText = 
-      `Game Over!\n` +
+      `GAME OVER\n` +
       `Final Score: ${Math.floor(score)}\n` +
-      `Your High Score: ${localHighScore}\n\n` +
-      `Press Spacebar to Try Again`;
+      `High Score: ${localHighScore}\n\n` +
+      `Press Spacebar to Restart`;
     overlay.style.display = "flex";
   }
 
@@ -310,7 +337,7 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  // Start
+  // Start the game
   init();
   </script>
 </body>
