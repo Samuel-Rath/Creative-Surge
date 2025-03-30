@@ -43,6 +43,36 @@
       color: #fff;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
     }
+    /* Rainbow power bar container, hidden by default */
+    #powerBarContainer {
+      position: absolute;
+      top: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 300px;
+      height: 20px;
+      border: 2px solid #fff;
+      display: none;
+      z-index: 999;
+    }
+    /* Rainbow power bar fill */
+    #powerBar {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet);
+    }
+    /* "POWERED UP!" text style with dynamic rainbow effect */
+    #powerText {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 28px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      display: none;
+      z-index: 999;
+    }
     /* Semi-transparent overlay for start, countdown and game-over states */
     #overlay {
       position: absolute;
@@ -71,8 +101,14 @@
 <body>
   <div id="gameContainer">
     <canvas id="gameCanvas"></canvas>
-    <!-- Scoreboard at top-left (includes combo multiplier) -->
+    <!-- Scoreboard (includes combo multiplier) -->
     <div id="score">Score: 0 | Multiplier: x1</div>
+    <!-- Rainbow power-up bar -->
+    <div id="powerBarContainer">
+      <div id="powerBar"></div>
+    </div>
+    <!-- "POWERED UP!" text -->
+    <div id="powerText">POWERED UP!</div>
     <!-- Overlay for start, countdown and game-over messages -->
     <div id="overlay">
       <div id="overlayText">
@@ -82,8 +118,10 @@ Press Spacebar to Start
 
 Instructions:
 - Use Left/Right arrows or A/D to move
-- Press Spacebar to jump
-- Collect yellow orbs for bonus points (some are POWER ORBS that are RAINBOW!)
+- Or move your mouse/touch the screen for smooth control
+- Press Spacebar or click/tap to jump
+- Collect yellow orbs (some are RAINBOW power orbs) for bonus points
+  (RAINBOW orbs grant temporary invincibility & boost your combo!)
 - Avoid red obstacles, holes, and flying toasters!
 
 Your High Score: 0
@@ -95,12 +133,9 @@ Your High Score: 0
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
   /***********************************************
-   * Enhanced Creative Surge Code with Rainbow Power Orbs
-   * - Invincibility power-ups with combo multiplier
-   * - Countdown before starting the game
-   * - Funny air obstacles (flying toasters)
-   * - Camera shake on game over
-   * - RAINBOW power orbs (cycling hues)
+   * Enhanced Creative Surge Code with Rainbow Power Orbs,
+   * Player Outline, Rainbow Power Bar, "POWERED UP!" Text,
+   * and Intuitive Mouse/Touch Controls.
    ***********************************************/
   let scene, camera, renderer;
   let player, targetX;
@@ -135,6 +170,13 @@ Your High Score: 0
 
   // Local high score
   let localHighScore = Number(localStorage.getItem("highscore")) || 0;
+
+  // For player outline (rainbow border)
+  let playerOutline = null;
+  let outlineHue = 0; // for cycling outline hue
+
+  // For "POWERED UP!" text rainbow effect
+  let powerTextHue = 0;
 
   // Returns a collision box for obstacles (based on player's feet)
   function getPlayerCollisionBox() {
@@ -215,8 +257,28 @@ Your High Score: 0
     targetX = player.position.x;
     // --- End of Player Design ---
 
-    // Key listener
-    document.addEventListener("keydown", onKeyDown);
+    // Add intuitive control: update targetX on mouse/touch move
+    const canvasElement = document.getElementById("gameCanvas");
+    canvasElement.addEventListener("mousemove", (e) => {
+      let mouseX = e.offsetX;
+      let width = e.target.clientWidth;
+      targetX = (mouseX / width) * 16 - 8;
+    });
+    canvasElement.addEventListener("touchmove", (e) => {
+      let touch = e.touches[0];
+      let rect = e.target.getBoundingClientRect();
+      let touchX = touch.clientX - rect.left;
+      let width = e.target.clientWidth;
+      targetX = (touchX / width) * 16 - 8;
+      e.preventDefault();
+    });
+    // Use click/tap to jump as well
+    canvasElement.addEventListener("click", () => {
+      if (gameState === "playing" && !isJumping) {
+        isJumping = true;
+        jumpVelocity = 12;
+      }
+    });
 
     // Overlay instructions (including power-ups)
     if (gameState === "start") {
@@ -226,7 +288,8 @@ Your High Score: 0
         `Press Spacebar to Start\n\n` +
         `Instructions:\n` +
         `- Use Left/Right arrows or A/D to move\n` +
-        `- Press Spacebar to jump\n` +
+        `- Or move your mouse/touch the screen for smooth control\n` +
+        `- Press Spacebar or click/tap to jump\n` +
         `- Collect yellow orbs (or RAINBOW power orbs) for bonus points\n` +
         `  (RAINBOW orbs grant temporary invincibility & boost your combo!)\n` +
         `- Avoid red obstacles, holes, and flying toasters!\n\n` +
@@ -254,11 +317,16 @@ Your High Score: 0
   }
 
   function onKeyDown(e) {
+    // Check for spacebar using both e.key, e.code, and e.keyCode as fallback
+    const isSpace = e.key === " " || e.key === "Spacebar" || e.code === "Space" || e.keyCode === 32;
+    if (isSpace) {
+      e.preventDefault();
+    }
     const overlay = document.getElementById("overlay");
     const overlayText = document.getElementById("overlayText");
 
     if (gameState === "start") {
-      if (e.key === " ") {
+      if (isSpace) {
         startCountdown();
       }
     } else if (gameState === "playing") {
@@ -267,14 +335,14 @@ Your High Score: 0
         targetX = Math.max(targetX - step, -8);
       } else if (e.key === "ArrowRight" || e.key === "d") {
         targetX = Math.min(targetX + step, 8);
-      } else if (e.key === " ") {
+      } else if (isSpace) {
         if (!isJumping) {
           isJumping = true;
           jumpVelocity = 12;
         }
       }
     } else if (gameState === "gameover") {
-      if (e.key === " ") {
+      if (isSpace) {
         restartGame();
         overlay.style.display = "none";
       }
@@ -298,19 +366,16 @@ Your High Score: 0
 
   function generateOrb() {
     const geo = new THREE.SphereGeometry(0.5, 16, 16);
-    // 20% chance for a power orb; now make it RAINBOW by cycling its hue
-    let isPower = Math.random() < 0.2;
-    // For regular orb, use yellow; for power orb, start with a color (we will update its hue)
+    // 20% chance for a power orb; RAINBOW effect
+    let isPower = Math.random() < 0.05;
     const mat = new THREE.MeshBasicMaterial({ color: isPower ? 0xff0000 : 0xffff00 });
-    // Note: if isPower is true, we override its color in the animate loop.
     const orb = new THREE.Mesh(geo, mat);
     orb.position.x = (Math.random() - 0.5) * 16;
     orb.position.y = 0.5;
     orb.position.z = player.position.z - 170;
     orb.userData.type = "orb";
     orb.userData.isPower = isPower;
-    // Initialize a starting hue for rainbow effect
-    if(isPower) {
+    if (isPower) {
       orb.userData.hue = Math.random();
     }
     scene.add(orb);
@@ -355,7 +420,7 @@ Your High Score: 0
     airObstacles.push(toasterGroup);
   }
 
-  // Extend collision check for all objects (full bounding box for non-obstacles)
+  // Extended collision check
   function checkCollisions(obj) {
     if (obj.userData.type === "obstacle") {
       const playerBox = getPlayerCollisionBox();
@@ -376,7 +441,7 @@ Your High Score: 0
       localHighScore = Math.floor(score);
       localStorage.setItem("highscore", localHighScore);
     }
-    // Camera shake on game over
+    // Camera shake effect
     const originalCamPos = camera.position.clone();
     let shakeTime = 300;
     const shakeInterval = setInterval(() => {
@@ -405,7 +470,10 @@ Your High Score: 0
     jumpVelocity = 0;
     invincible = false;
     comboMultiplier = 1;
-
+    if (playerOutline) {
+      player.remove(playerOutline);
+      playerOutline = null;
+    }
     obstacles.forEach(obs => scene.remove(obs));
     obstacles = [];
     orbs.forEach(orb => scene.remove(orb));
@@ -435,12 +503,33 @@ Your High Score: 0
       score += gameSpeed * (deltaTime / 16.67);
       document.getElementById("score").innerText = `Score: ${Math.floor(score)} | Multiplier: x${comboMultiplier}`;
 
+      // Update invincibility timer, outline, power-up bar, and dynamic "POWERED UP!" text if active
       if (invincible) {
         invincibleTimer -= deltaTime;
+        if (playerOutline) {
+          outlineHue = (outlineHue + deltaTime / 5000) % 1;
+          playerOutline.material.color.setHSL(outlineHue, 1, 0.5);
+        }
+        const powerBar = document.getElementById("powerBar");
+        const containerWidth = 300;
+        powerBar.style.width = ((invincibleTimer / 10000) * containerWidth) + "px";
+        document.getElementById("powerBarContainer").style.display = "block";
+        powerTextHue = (powerTextHue + deltaTime / 5000) % 1;
+        document.getElementById("powerText").style.color = `hsl(${powerTextHue * 360}, 100%, 50%)`;
+        document.getElementById("powerText").style.display = "block";
         if (invincibleTimer <= 0) {
           invincible = false;
           player.children[0].material.color.set(0x00ff00);
+          if (playerOutline) {
+            player.remove(playerOutline);
+            playerOutline = null;
+          }
+          document.getElementById("powerBarContainer").style.display = "none";
+          document.getElementById("powerText").style.display = "none";
         }
+      } else {
+        document.getElementById("powerBarContainer").style.display = "none";
+        document.getElementById("powerText").style.display = "none";
       }
 
       if (isJumping) {
@@ -473,9 +562,7 @@ Your High Score: 0
       for (let i = orbs.length - 1; i >= 0; i--) {
         const orb = orbs[i];
         orb.position.z += gameSpeed * (deltaTime / 16.67);
-        // If this is a power orb, update its material color to cycle through rainbow hues
         if (orb.userData.isPower) {
-          // Increment hue based on time; wrap around after 1
           orb.userData.hue = (orb.userData.hue + deltaTime / 5000) % 1;
           orb.material.color.setHSL(orb.userData.hue, 1, 0.5);
         } else {
@@ -493,8 +580,16 @@ Your High Score: 0
           lastOrbTime = currentTime;
           if (orb.userData.isPower) {
             invincible = true;
-            invincibleTimer = 3000;
+            invincibleTimer = 10000; // 10 seconds of invincibility
             player.children[0].material.color.set(0xFFD700);
+            if (!playerOutline) {
+              const outlineGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(3, 1.5, 5));
+              const outlineMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+              playerOutline = new THREE.LineSegments(outlineGeo, outlineMat);
+              playerOutline.renderOrder = 1;
+              outlineHue = 0;
+              player.add(playerOutline);
+            }
           }
           score += 50 * comboMultiplier;
           scene.remove(orb);
@@ -511,7 +606,8 @@ Your High Score: 0
         } else {
           const halfWidth = hole.userData.width / 2;
           const halfDepth = hole.userData.depth / 2;
-          if (player.position.y <= 0.1 &&
+          if (!invincible &&
+              player.position.y <= 0.1 &&
               player.position.x >= hole.position.x - halfWidth &&
               player.position.x <= hole.position.x + halfWidth &&
               player.position.z >= hole.position.z - halfDepth &&
@@ -564,6 +660,9 @@ Your High Score: 0
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
+
+  // Attach keydown event to the window for broader compatibility
+  window.addEventListener("keydown", onKeyDown);
 
   init();
   </script>
