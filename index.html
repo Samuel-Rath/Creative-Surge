@@ -9,12 +9,11 @@
       margin: 0; 
       padding: 0; 
       width: 100%; 
-      height: 100%; 
+      height: 100%;
       background: #000; 
       overflow: hidden;
       font-family: Arial, sans-serif;
     }
-
     /* Container that holds the canvas, score, and overlay */
     #gameContainer {
       position: absolute; 
@@ -24,7 +23,6 @@
       height: 100%;
       background: #000;
     }
-
     /* The 3D canvas fills #gameContainer */
     #gameCanvas {
       position: absolute;
@@ -34,7 +32,6 @@
       height: 100%;
       display: block;
     }
-
     /* Score in top-left, large white text, above the canvas */
     #score {
       position: absolute;
@@ -46,7 +43,6 @@
       color: #fff;
       text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
     }
-
     /* Semi-transparent overlay for start and game-over states */
     #overlay {
       position: absolute;
@@ -54,18 +50,17 @@
       left: 0;
       width: 100%; 
       height: 100%;
-      background: rgba(0, 0, 0, 0.7); /* darker overlay for more contrast */
+      background: rgba(0, 0, 0, 0.7);
       display: flex; 
       align-items: center; 
       justify-content: center;
       z-index: 1000;
     }
-
     /* Text in the centre of the overlay */
     #overlayText {
       font-size: 32px;
       text-align: center;
-      white-space: pre-line; /* allows multi-line text using \n */
+      white-space: pre-line;
       color: #fff;
       text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
       line-height: 1.4;
@@ -76,10 +71,8 @@
 <body>
   <div id="gameContainer">
     <canvas id="gameCanvas"></canvas>
-
     <!-- Scoreboard at top-left -->
     <div id="score">Score: 0</div>
-
     <!-- Overlay for start/game-over messages -->
     <div id="overlay">
       <div id="overlayText">
@@ -89,8 +82,9 @@ Press Spacebar to Start
 
 Instructions:
 - Use Left/Right arrows or A/D to move
+- Use Up arrow or W to jump
 - Collect yellow orbs for bonus points
-- Avoid red obstacles
+- Avoid red obstacles and holes in the road
 
 Your High Score: 0
       </div>
@@ -101,24 +95,43 @@ Your High Score: 0
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
   /***********************************************
-   * Minimal Creative Surge Code
+   * Minimal Creative Surge Code with Jump & Holes
    ***********************************************/
   let scene, camera, renderer;
   let player, targetX;
   let obstacles = [];
   let orbs = [];
+  let holes = [];
   let score = 0;
   let gameSpeed = 0.1;
   let lastTime = performance.now();
   let obstacleTimer = 1500;
   let orbTimer = 3000;
+  let holeTimer = 5000;  // Hole spawn timer (milliseconds)
   let gameState = "start";  // "start", "playing", or "gameover"
 
   const baseObstacleInterval = 1500;
   const baseOrbInterval = 3000;
+  const baseHoleInterval = 5000;
+
+  // Jump physics variables
+  let isJumping = false;
+  let jumpVelocity = 0;
+  const gravity = -20;  // Gravity remains the same
 
   // Local high score
   let localHighScore = Number(localStorage.getItem("highscore")) || 0;
+
+  // Returns a custom collision box for obstacles (based on player's feet)
+  function getPlayerCollisionBox() {
+    const halfWidth = 1.25;
+    const boxHeight = 0.4;
+    const halfDepth = 2;
+    const baseY = player.position.y - 0.5;
+    const min = new THREE.Vector3(player.position.x - halfWidth, baseY, player.position.z - halfDepth);
+    const max = new THREE.Vector3(player.position.x + halfWidth, baseY + boxHeight, player.position.z + halfDepth);
+    return new THREE.Box3(min, max);
+  }
 
   function init() {
     scene = new THREE.Scene();
@@ -138,10 +151,6 @@ Your High Score: 0
     scene.add(directionalLight);
 
     // Ground plane
-    // Create a plane geometry for the ground (road) with a length of 1000 units.
-    // After rotation, the 1000-unit length extends along the z-axis.
-    // To make the road extend to the player (positioned at z=10), we set the ground's centre such that:
-    // centre + (1000 / 2) = 10  => centre = 10 - 500 = -490.
     const groundGeo = new THREE.PlaneGeometry(20, 1000);
     const groundMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -149,18 +158,53 @@ Your High Score: 0
     ground.position.z = -490;
     scene.add(ground);
 
-    // Player
-    const playerGeo = new THREE.BoxGeometry(1, 1, 1);
-    const playerMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    player = new THREE.Mesh(playerGeo, playerMat);
-    player.position.set(0, 0.5, 10);
-    scene.add(player);
+    // --- Player: "Futuristic Racer" design ---
+    const playerGroup = new THREE.Group();
+
+    // Main body: a streamlined green box
+    const bodyGeo = new THREE.BoxGeometry(2.5, 1, 4);
+    const bodyMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.set(0, 0, 0);
+    playerGroup.add(body);
+
+    // Cockpit: a blue sphere positioned on top of the body
+    const cockpitGeo = new THREE.SphereGeometry(0.75, 16, 16);
+    const cockpitMat = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+    cockpit.position.set(0, 0.75, -0.5);
+    playerGroup.add(cockpit);
+
+    // Left fin: a thin red box for aerodynamic effect
+    const leftFinGeo = new THREE.BoxGeometry(0.1, 0.5, 1);
+    const finMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const leftFin = new THREE.Mesh(leftFinGeo, finMat);
+    leftFin.position.set(-1.35, 0, 0.5);
+    playerGroup.add(leftFin);
+
+    // Right fin: a mirrored version of the left fin
+    const rightFinGeo = new THREE.BoxGeometry(0.1, 0.5, 1);
+    const rightFin = new THREE.Mesh(rightFinGeo, finMat);
+    rightFin.position.set(1.35, 0, 0.5);
+    playerGroup.add(rightFin);
+
+    // Rear fin: an additional fin at the back
+    const rearFinGeo = new THREE.BoxGeometry(0.5, 0.1, 1);
+    const rearFin = new THREE.Mesh(rearFinGeo, finMat);
+    rearFin.position.set(0, 0.5, 2);
+    playerGroup.add(rearFin);
+
+    // Position the player and add to the scene
+    playerGroup.position.set(0, 0, 10);
+    scene.add(playerGroup);
+    player = playerGroup;
     targetX = player.position.x;
+    // --- End of Player Design ---
 
     // Key listener
     document.addEventListener("keydown", onKeyDown);
 
-    // Update start overlay text with local high score if available
+    // Update overlay text
     if (gameState === "start") {
       const overlayText = document.getElementById("overlayText");
       overlayText.innerText = 
@@ -168,8 +212,9 @@ Your High Score: 0
         `Press Spacebar to Start\n\n` +
         `Instructions:\n` +
         `- Use Left/Right arrows or A/D to move\n` +
+        `- Use Up arrow or W to jump\n` +
         `- Collect yellow orbs for bonus points\n` +
-        `- Avoid red obstacles\n\n` +
+        `- Avoid red obstacles and holes in the road\n\n` +
         `Your High Score: ${localHighScore}`;
     }
 
@@ -191,6 +236,12 @@ Your High Score: 0
         targetX = Math.max(targetX - step, -8);
       } else if (e.key === "ArrowRight" || e.key === "d") {
         targetX = Math.min(targetX + step, 8);
+      } else if (e.key === "ArrowUp" || e.key === "w") {
+        // Initiate jump if not already jumping
+        if (!isJumping) {
+          isJumping = true;
+          jumpVelocity = 12;  // Increased jump velocity for a higher jump
+        }
       }
     } else if (gameState === "gameover") {
       if (e.key === " ") {
@@ -209,6 +260,7 @@ Your High Score: 0
     obs.position.z = player.position.z - 50;
     obs.rotation.x = Math.random() * Math.PI;
     obs.rotation.y = Math.random() * Math.PI;
+    obs.userData.type = "obstacle";
     scene.add(obs);
     obstacles.push(obs);
   }
@@ -220,14 +272,35 @@ Your High Score: 0
     orb.position.x = (Math.random() - 0.5) * 16;
     orb.position.y = 0.5;
     orb.position.z = player.position.z - 70;
+    orb.userData.type = "orb";
     scene.add(orb);
     orbs.push(orb);
   }
 
+  function generateHole() {
+    const holeWidth = Math.random() * 2 + 2;  // 2 to 4 units wide
+    const holeDepth = Math.random() * 1 + 2;  // 2 to 3 units deep
+    const holeGeo = new THREE.BoxGeometry(holeWidth, 0.1, holeDepth);
+    const holeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const hole = new THREE.Mesh(holeGeo, holeMat);
+    hole.position.x = (Math.random() - 0.5) * 16;
+    hole.position.y = 0.05;
+    hole.position.z = player.position.z - 60;
+    hole.userData = { width: holeWidth, depth: holeDepth };
+    scene.add(hole);
+    holes.push(hole);
+  }
+
   function checkCollisions(obj) {
-    const playerBox = new THREE.Box3().setFromObject(player);
-    const objBox = new THREE.Box3().setFromObject(obj);
-    return playerBox.intersectsBox(objBox);
+    if (obj.userData.type === "obstacle") {
+      const playerBox = getPlayerCollisionBox();
+      const objBox = new THREE.Box3().setFromObject(obj);
+      return playerBox.intersectsBox(objBox);
+    } else {
+      const playerBox = new THREE.Box3().setFromObject(player);
+      const objBox = new THREE.Box3().setFromObject(obj);
+      return playerBox.intersectsBox(objBox);
+    }
   }
 
   function triggerGameOver() {
@@ -250,44 +323,54 @@ Your High Score: 0
     gameState = "playing";
     score = 0;
     gameSpeed = 0.1;
+    isJumping = false;
+    jumpVelocity = 0;
 
     obstacles.forEach(obs => scene.remove(obs));
     obstacles = [];
     orbs.forEach(orb => scene.remove(orb));
     orbs = [];
+    holes.forEach(hole => scene.remove(hole));
+    holes = [];
 
-    player.position.set(0, 0.5, 10);
+    player.position.set(0, 0, 10);
     targetX = player.position.x;
 
     lastTime = performance.now();
     obstacleTimer = baseObstacleInterval;
     orbTimer = baseOrbInterval;
+    holeTimer = baseHoleInterval;
   }
 
   function animate() {
     requestAnimationFrame(animate);
-
     const currentTime = performance.now();
     const deltaTime = currentTime - lastTime;
     lastTime = currentTime;
 
     if (gameState === "playing") {
-      // Update score
       score += gameSpeed * (deltaTime / 16.67);
       document.getElementById("score").innerText = "Score: " + Math.floor(score);
 
-      // Move player smoothly
+      if (isJumping) {
+        const dt = deltaTime / 1000;
+        jumpVelocity += gravity * dt;
+        player.position.y += jumpVelocity * dt;
+        if (player.position.y <= 0) {
+          player.position.y = 0;
+          isJumping = false;
+          jumpVelocity = 0;
+        }
+      }
+
       player.position.x += (targetX - player.position.x) * 0.1;
-      // Camera follows player horizontally
       camera.position.x += (player.position.x - camera.position.x) * 0.05;
 
-      // Update obstacles
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
         obs.position.z += gameSpeed * (deltaTime / 16.67);
         obs.rotation.x += 0.01 * (deltaTime / 16.67);
         obs.rotation.y += 0.01 * (deltaTime / 16.67);
-
         if (obs.position.z > camera.position.z + 10) {
           scene.remove(obs);
           obstacles.splice(i, 1);
@@ -296,7 +379,6 @@ Your High Score: 0
         }
       }
 
-      // Update orbs
       for (let i = orbs.length - 1; i >= 0; i--) {
         const orb = orbs[i];
         orb.position.z += gameSpeed * (deltaTime / 16.67);
@@ -311,9 +393,28 @@ Your High Score: 0
         }
       }
 
-      // Spawning logic
+      for (let i = holes.length - 1; i >= 0; i--) {
+        const hole = holes[i];
+        hole.position.z += gameSpeed * (deltaTime / 16.67);
+        if (hole.position.z > camera.position.z + 10) {
+          scene.remove(hole);
+          holes.splice(i, 1);
+        } else {
+          const halfWidth = hole.userData.width / 2;
+          const halfDepth = hole.userData.depth / 2;
+          if (player.position.y <= 0.1 &&
+              player.position.x >= hole.position.x - halfWidth &&
+              player.position.x <= hole.position.x + halfWidth &&
+              player.position.z >= hole.position.z - halfDepth &&
+              player.position.z <= hole.position.z + halfDepth) {
+            triggerGameOver();
+          }
+        }
+      }
+
       obstacleTimer -= deltaTime;
       orbTimer -= deltaTime;
+      holeTimer -= deltaTime;
       if (obstacleTimer <= 0) {
         generateObstacle();
         obstacleTimer = Math.max(500, baseObstacleInterval - Math.floor(score / 10));
@@ -322,22 +423,23 @@ Your High Score: 0
         generateOrb();
         orbTimer = Math.max(1000, baseOrbInterval - Math.floor(score / 20));
       }
+      if (holeTimer <= 0) {
+        generateHole();
+        holeTimer = baseHoleInterval;
+      }
 
-      // Increase difficulty
       gameSpeed += 0.0001 * deltaTime;
     }
 
     renderer.render(scene, camera);
   }
 
-  // Handle resize
   window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  // Start the game
   init();
   </script>
 </body>
