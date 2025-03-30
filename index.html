@@ -117,7 +117,7 @@ Your High Score: 0
   // Jump physics variables
   let isJumping = false;
   let jumpVelocity = 0;
-  const gravity = -20;  // Gravity remains the same
+  const gravity = -20;
 
   // Local high score
   let localHighScore = Number(localStorage.getItem("highscore")) || 0;
@@ -231,16 +231,16 @@ Your High Score: 0
         overlay.style.display = "none";
       }
     } else if (gameState === "playing") {
-      const step = 1;
+      // Increase step size for more responsive movement
+      const step = 2;
       if (e.key === "ArrowLeft" || e.key === "a") {
         targetX = Math.max(targetX - step, -8);
       } else if (e.key === "ArrowRight" || e.key === "d") {
         targetX = Math.min(targetX + step, 8);
       } else if (e.key === "ArrowUp" || e.key === "w") {
-        // Initiate jump if not already jumping
         if (!isJumping) {
           isJumping = true;
-          jumpVelocity = 12;  // Increased jump velocity for a higher jump
+          jumpVelocity = 12;
         }
       }
     } else if (gameState === "gameover") {
@@ -278,8 +278,8 @@ Your High Score: 0
   }
 
   function generateHole() {
-    const holeWidth = Math.random() * 2 + 2;  // 2 to 4 units wide
-    const holeDepth = Math.random() * 1 + 2;  // 2 to 3 units deep
+    const holeWidth = Math.random() * 2 + 2;
+    const holeDepth = Math.random() * 1 + 2;
     const holeGeo = new THREE.BoxGeometry(holeWidth, 0.1, holeDepth);
     const holeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const hole = new THREE.Mesh(holeGeo, holeMat);
@@ -363,8 +363,10 @@ Your High Score: 0
         }
       }
 
-      player.position.x += (targetX - player.position.x) * 0.1;
-      camera.position.x += (player.position.x - camera.position.x) * 0.05;
+      // Increased smoothing factor for horizontal movement
+      player.position.x += (targetX - player.position.x) * 0.2;
+      // Slightly faster camera follow for a smoother feel
+      camera.position.x += (player.position.x - camera.position.x) * 0.1;
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
