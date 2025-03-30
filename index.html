@@ -135,7 +135,7 @@ Your High Score: 0
   /***********************************************
    * Enhanced Creative Surge Code with Rainbow Power Orbs,
    * Player Outline, Rainbow Power Bar, "POWERED UP!" Text,
-   * and Intuitive Mouse/Touch Controls.
+   * Smooth Car-like Movement & 360 Spin on Jump.
    ***********************************************/
   let scene, camera, renderer;
   let player, targetX;
@@ -317,7 +317,7 @@ Your High Score: 0
   }
 
   function onKeyDown(e) {
-    // Check for spacebar using both e.key, e.code, and e.keyCode as fallback
+    // Check for spacebar using e.key, e.code, and e.keyCode as fallback
     const isSpace = e.key === " " || e.key === "Spacebar" || e.code === "Space" || e.keyCode === 32;
     if (isSpace) {
       e.preventDefault();
@@ -367,7 +367,7 @@ Your High Score: 0
   function generateOrb() {
     const geo = new THREE.SphereGeometry(0.5, 16, 16);
     // 20% chance for a power orb; RAINBOW effect
-    let isPower = Math.random() < 0.05;
+    let isPower = Math.random() < 0.2;
     const mat = new THREE.MeshBasicMaterial({ color: isPower ? 0xff0000 : 0xffff00 });
     const orb = new THREE.Mesh(geo, mat);
     orb.position.x = (Math.random() - 0.5) * 16;
@@ -532,19 +532,25 @@ Your High Score: 0
         document.getElementById("powerText").style.display = "none";
       }
 
+      // Smooth horizontal movement (reduced factor for more car-like glide)
+      player.position.x += (targetX - player.position.x) * 0.2;
+      camera.position.x += (player.position.x - camera.position.x) * 0.2;
+
+      // 360 Spin while jumping
       if (isJumping) {
         const dt = deltaTime / 1000;
         jumpVelocity += gravity * dt;
         player.position.y += jumpVelocity * dt;
+        // Add a constant roll (360° in 0.7 sec)
+        player.rotation.z += (2 * Math.PI / 0.7) * dt;
         if (player.position.y <= 0) {
           player.position.y = 0;
           isJumping = false;
           jumpVelocity = 0;
+          // Reset roll to level (modulo 2π)
+          player.rotation.z = 0;
         }
       }
-
-      player.position.x += (targetX - player.position.x) * 0.4;
-      camera.position.x += (player.position.x - camera.position.x) * 0.2;
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
