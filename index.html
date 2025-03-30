@@ -3,126 +3,146 @@
 <head>
   <meta charset="UTF-8">
   <title>Creative Surge - Minimal Single File</title>
+  <!-- Google Font for a futuristic look -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    /* Force page and body to fill the entire screen and be black */
+    /* Global Styles with a futuristic dark theme */
     html, body {
-      margin: 0; 
-      padding: 0; 
-      width: 100%; 
+      margin: 0;
+      padding: 0;
+      width: 100%;
       height: 100%;
-      background: #000; 
+      background: linear-gradient(135deg, #0d0d0d, #1a1a1a);
       overflow: hidden;
-      font-family: Arial, sans-serif;
+      font-family: 'Orbitron', sans-serif;
+      color: #fff;
     }
-    /* Container that holds the canvas, score, and overlay */
+    /* Container for the game elements */
     #gameContainer {
-      position: absolute; 
-      top: 0; 
+      position: absolute;
+      top: 0;
       left: 0;
-      width: 100%; 
+      width: 100%;
       height: 100%;
       background: #000;
     }
-    /* The 3D canvas fills #gameContainer */
+    /* Fullscreen canvas */
     #gameCanvas {
       position: absolute;
-      top: 0; 
+      top: 0;
       left: 0;
       width: 100%;
       height: 100%;
       display: block;
     }
-    /* Score in top-left, large white text, above the canvas */
+    /* Scoreboard styling */
     #score {
       position: absolute;
-      top: 10px; 
-      left: 10px;
+      top: 20px;
+      left: 20px;
       z-index: 999;
-      font-size: 24px;
+      font-size: 26px;
       font-weight: bold;
-      color: #fff;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
     }
-    /* Rainbow power bar container, hidden by default */
+    /* Pause icon styling (top right) */
+    #pauseIcon {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 999;
+      font-size: 26px;
+      font-weight: bold;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    /* Rainbow power bar container */
     #powerBarContainer {
       position: absolute;
-      top: 50px;
+      top: 70px;
       left: 50%;
       transform: translateX(-50%);
       width: 300px;
       height: 20px;
       border: 2px solid #fff;
+      border-radius: 10px;
       display: none;
       z-index: 999;
+      box-shadow: 0 0 10px rgba(255,255,255,0.5);
     }
     /* Rainbow power bar fill */
     #powerBar {
       height: 100%;
       width: 100%;
       background: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet);
+      border-radius: 8px;
     }
     /* "POWERED UP!" text style with dynamic rainbow effect */
     #powerText {
       position: absolute;
-      top: 80px;
+      top: 100px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 28px;
+      font-size: 30px;
       font-weight: bold;
       text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
       display: none;
       z-index: 999;
     }
-    /* Semi-transparent overlay for start, countdown and game-over states */
+    /* Overlay for start, countdown, game-over, and pause screens */
     #overlay {
       position: absolute;
-      top: 0; 
+      top: 0;
       left: 0;
-      width: 100%; 
+      width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex; 
-      align-items: center; 
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
       justify-content: center;
       z-index: 1000;
     }
-    /* Text in the centre of the overlay */
+    /* Overlay text styling */
     #overlayText {
       font-size: 32px;
       text-align: center;
       white-space: pre-line;
-      color: #fff;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
       line-height: 1.4;
       max-width: 80%;
+      padding: 20px;
+      border: 2px solid #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(255,255,255,0.5);
     }
   </style>
 </head>
 <body>
   <div id="gameContainer">
     <canvas id="gameCanvas"></canvas>
-    <!-- Scoreboard (includes combo multiplier) -->
     <div id="score">Score: 0 | Multiplier: x1</div>
-    <!-- Rainbow power-up bar -->
+    <!-- Pause icon on top right -->
+    <div id="pauseIcon">P</div>
     <div id="powerBarContainer">
       <div id="powerBar"></div>
     </div>
-    <!-- "POWERED UP!" text -->
     <div id="powerText">POWERED UP!</div>
-    <!-- Overlay for start, countdown and game-over messages -->
     <div id="overlay">
       <div id="overlayText">
 Welcome to Creative Surge!
 
 Press Spacebar to Start
+(Press P to pause/resume)
 
 Instructions:
-- Use Left/Right arrows or A/D to move
-- Or move your mouse/touch the screen for smooth control
-- Press Spacebar or click/tap to jump
-- Collect yellow orbs (some are RAINBOW power orbs) for bonus points
+• Use Left/Right arrows or A/D to move  
+  (or move your mouse/touch the screen for smooth control)
+• Press Spacebar or click/tap to jump (with a 360° spin!)
+• Collect yellow orbs (some are RAINBOW power orbs) for bonus points  
   (RAINBOW orbs grant temporary invincibility & boost your combo!)
-- Avoid red obstacles, holes, and flying toasters!
+• Avoid red obstacles, holes, and flying toasters!
 
 Your High Score: 0
       </div>
@@ -132,545 +152,564 @@ Your High Score: 0
   <!-- Three.js library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
-  /***********************************************
-   * Enhanced Creative Surge Code with Rainbow Power Orbs,
-   * Player Outline, Rainbow Power Bar, "POWERED UP!" Text,
-   * Smooth Car-like Movement & 360 Spin on Jump.
-   ***********************************************/
-  let scene, camera, renderer;
-  let player, targetX;
-  let obstacles = [];
-  let orbs = [];
-  let holes = [];
-  let airObstacles = []; // For flying toasters
-  let score = 0;
-  let gameSpeed = 0.1;
-  let lastTime = performance.now();
-  let obstacleTimer = 1500;
-  let orbTimer = 3000;
-  let holeTimer = 5000;
-  let airObstacleTimer = 4000;
-  let gameState = "start"; // "start", "countdown", "playing", "gameover"
+    /***********************************************
+     * Enhanced Creative Surge Code with Rainbow Power Orbs,
+     * Player Outline, Rainbow Power Bar, "POWERED UP!" Text,
+     * Smooth Car-like Movement, 360° Spin on Jump & Pause Feature.
+     ***********************************************/
+    let scene, camera, renderer;
+    let player, targetX;
+    let obstacles = [];
+    let orbs = [];
+    let holes = [];
+    let airObstacles = []; // For flying toasters
+    let score = 0;
+    let gameSpeed = 0.1;
+    let lastTime = performance.now();
+    let obstacleTimer = 1500;
+    let orbTimer = 3000;
+    let holeTimer = 5000;
+    let airObstacleTimer = 4000;
+    let gameState = "start"; // "start", "countdown", "playing", "paused", "gameover"
 
-  const baseObstacleInterval = 1500;
-  const baseOrbInterval = 3000;
-  const baseHoleInterval = 5000;
-  const baseAirObstacleInterval = 4000;
+    const baseObstacleInterval = 1500;
+    const baseOrbInterval = 3000;
+    const baseHoleInterval = 5000;
+    const baseAirObstacleInterval = 4000;
 
-  // Jump physics
-  let isJumping = false;
-  let jumpVelocity = 0;
-  const gravity = -20;
+    // Jump physics
+    let isJumping = false;
+    let jumpVelocity = 0;
+    const gravity = -20;
 
-  // Power-up & Combo variables
-  let invincible = false;
-  let invincibleTimer = 0;
-  let comboMultiplier = 1;
-  let lastOrbTime = 0;
+    // Power-up & Combo variables
+    let invincible = false;
+    let invincibleTimer = 0;
+    let comboMultiplier = 1;
+    let lastOrbTime = 0;
 
-  // Local high score
-  let localHighScore = Number(localStorage.getItem("highscore")) || 0;
+    // Local high score
+    let localHighScore = Number(localStorage.getItem("highscore")) || 0;
 
-  // For player outline (rainbow border)
-  let playerOutline = null;
-  let outlineHue = 0; // for cycling outline hue
+    // For player outline (rainbow border)
+    let playerOutline = null;
+    let outlineHue = 0; // for cycling outline hue
 
-  // For "POWERED UP!" text rainbow effect
-  let powerTextHue = 0;
+    // For "POWERED UP!" text rainbow effect
+    let powerTextHue = 0;
 
-  // Returns a collision box for obstacles (based on player's feet)
-  function getPlayerCollisionBox() {
-    const halfWidth = 1.25;
-    const boxHeight = 0.4;
-    const halfDepth = 2;
-    const baseY = player.position.y - 0.5;
-    const min = new THREE.Vector3(player.position.x - halfWidth, baseY, player.position.z - halfDepth);
-    const max = new THREE.Vector3(player.position.x + halfWidth, baseY + boxHeight, player.position.z + halfDepth);
-    return new THREE.Box3(min, max);
-  }
-
-  function init() {
-    scene = new THREE.Scene();
-
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 5, 20);
-
-    const canvas = document.getElementById("gameCanvas");
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(0, 50, 50);
-    scene.add(directionalLight);
-
-    // Ground plane
-    const groundGeo = new THREE.PlaneGeometry(20, 1000);
-    const groundMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.z = -490;
-    scene.add(ground);
-
-    // --- Player: "Futuristic Racer" design ---
-    const playerGroup = new THREE.Group();
-
-    // Main body: streamlined green box
-    const bodyGeo = new THREE.BoxGeometry(2.5, 1, 4);
-    const bodyMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.set(0, 0, 0);
-    playerGroup.add(body);
-
-    // Cockpit: blue sphere on top
-    const cockpitGeo = new THREE.SphereGeometry(0.75, 16, 16);
-    const cockpitMat = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-    const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
-    cockpit.position.set(0, 0.75, -0.5);
-    playerGroup.add(cockpit);
-
-    // Left fin: red box
-    const leftFinGeo = new THREE.BoxGeometry(0.1, 0.5, 1);
-    const finMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const leftFin = new THREE.Mesh(leftFinGeo, finMat);
-    leftFin.position.set(-1.35, 0, 0.5);
-    playerGroup.add(leftFin);
-
-    // Right fin: mirrored red box
-    const rightFinGeo = new THREE.BoxGeometry(0.1, 0.5, 1);
-    const rightFin = new THREE.Mesh(rightFinGeo, finMat);
-    rightFin.position.set(1.35, 0, 0.5);
-    playerGroup.add(rightFin);
-
-    // Rear fin: additional fin at the back
-    const rearFinGeo = new THREE.BoxGeometry(0.5, 0.1, 1);
-    const rearFin = new THREE.Mesh(rearFinGeo, finMat);
-    rearFin.position.set(0, 0.5, 2);
-    playerGroup.add(rearFin);
-
-    // Position player
-    playerGroup.position.set(0, 0, 10);
-    scene.add(playerGroup);
-    player = playerGroup;
-    targetX = player.position.x;
-    // --- End of Player Design ---
-
-    // Add intuitive control: update targetX on mouse/touch move
-    const canvasElement = document.getElementById("gameCanvas");
-    canvasElement.addEventListener("mousemove", (e) => {
-      let mouseX = e.offsetX;
-      let width = e.target.clientWidth;
-      targetX = (mouseX / width) * 16 - 8;
-    });
-    canvasElement.addEventListener("touchmove", (e) => {
-      let touch = e.touches[0];
-      let rect = e.target.getBoundingClientRect();
-      let touchX = touch.clientX - rect.left;
-      let width = e.target.clientWidth;
-      targetX = (touchX / width) * 16 - 8;
-      e.preventDefault();
-    });
-    // Use click/tap to jump as well
-    canvasElement.addEventListener("click", () => {
-      if (gameState === "playing" && !isJumping) {
-        isJumping = true;
-        jumpVelocity = 12;
-      }
-    });
-
-    // Overlay instructions (including power-ups)
-    if (gameState === "start") {
-      const overlayText = document.getElementById("overlayText");
-      overlayText.innerText = 
-        `Welcome to Creative Surge!\n\n` +
-        `Press Spacebar to Start\n\n` +
-        `Instructions:\n` +
-        `- Use Left/Right arrows or A/D to move\n` +
-        `- Or move your mouse/touch the screen for smooth control\n` +
-        `- Press Spacebar or click/tap to jump\n` +
-        `- Collect yellow orbs (or RAINBOW power orbs) for bonus points\n` +
-        `  (RAINBOW orbs grant temporary invincibility & boost your combo!)\n` +
-        `- Avoid red obstacles, holes, and flying toasters!\n\n` +
-        `Your High Score: ${localHighScore}`;
+    // Returns a collision box for obstacles (based on player's feet)
+    function getPlayerCollisionBox() {
+      const halfWidth = 1.25;
+      const boxHeight = 0.4;
+      const halfDepth = 2;
+      const baseY = player.position.y - 0.5;
+      const min = new THREE.Vector3(player.position.x - halfWidth, baseY, player.position.z - halfDepth);
+      const max = new THREE.Vector3(player.position.x + halfWidth, baseY + boxHeight, player.position.z + halfDepth);
+      return new THREE.Box3(min, max);
     }
 
-    animate();
-  }
+    function init() {
+      scene = new THREE.Scene();
 
-  // Countdown before gameplay starts
-  function startCountdown() {
-    gameState = "countdown";
-    let count = 3;
-    const overlayText = document.getElementById("overlayText");
-    const countdownInterval = setInterval(() => {
-      overlayText.innerText = `Get Ready!\n\n${count}`;
-      count--;
-      if (count < 0) {
-        clearInterval(countdownInterval);
-        overlayText.innerText = "";
-        document.getElementById("overlay").style.display = "none";
-        gameState = "playing";
-      }
-    }, 1000);
-  }
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 5, 20);
 
-  function onKeyDown(e) {
-    // Check for spacebar using e.key, e.code, and e.keyCode as fallback
-    const isSpace = e.key === " " || e.key === "Spacebar" || e.code === "Space" || e.keyCode === 32;
-    if (isSpace) {
-      e.preventDefault();
-    }
-    const overlay = document.getElementById("overlay");
-    const overlayText = document.getElementById("overlayText");
+      const canvas = document.getElementById("gameCanvas");
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
 
-    if (gameState === "start") {
-      if (isSpace) {
-        startCountdown();
-      }
-    } else if (gameState === "playing") {
-      const step = 3;
-      if (e.key === "ArrowLeft" || e.key === "a") {
-        targetX = Math.max(targetX - step, -8);
-      } else if (e.key === "ArrowRight" || e.key === "d") {
-        targetX = Math.min(targetX + step, 8);
-      } else if (isSpace) {
-        if (!isJumping) {
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+      directionalLight.position.set(0, 50, 50);
+      scene.add(directionalLight);
+
+      // Ground plane
+      const groundGeo = new THREE.PlaneGeometry(20, 1000);
+      const groundMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.z = -490;
+      scene.add(ground);
+
+      // --- Player: "Futuristic Racer" design ---
+      const playerGroup = new THREE.Group();
+
+      // Main body: streamlined green box
+      const bodyGeo = new THREE.BoxGeometry(2.5, 1, 4);
+      const bodyMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.position.set(0, 0, 0);
+      playerGroup.add(body);
+
+      // Cockpit: blue sphere on top
+      const cockpitGeo = new THREE.SphereGeometry(0.75, 16, 16);
+      const cockpitMat = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+      const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+      cockpit.position.set(0, 0.75, -0.5);
+      playerGroup.add(cockpit);
+
+      // Left fin: red box
+      const leftFinGeo = new THREE.BoxGeometry(0.1, 0.5, 1);
+      const finMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const leftFin = new THREE.Mesh(leftFinGeo, finMat);
+      leftFin.position.set(-1.35, 0, 0.5);
+      playerGroup.add(leftFin);
+
+      // Right fin: mirrored red box
+      const rightFinGeo = new THREE.BoxGeometry(0.1, 0.5, 1);
+      const rightFin = new THREE.Mesh(rightFinGeo, finMat);
+      rightFin.position.set(1.35, 0, 0.5);
+      playerGroup.add(rightFin);
+
+      // Rear fin: additional fin at the back
+      const rearFinGeo = new THREE.BoxGeometry(0.5, 0.1, 1);
+      const rearFin = new THREE.Mesh(rearFinGeo, finMat);
+      rearFin.position.set(0, 0.5, 2);
+      playerGroup.add(rearFin);
+
+      // Position player
+      playerGroup.position.set(0, 0, 10);
+      scene.add(playerGroup);
+      player = playerGroup;
+      targetX = player.position.x;
+      // --- End of Player Design ---
+
+      // Add intuitive control: update targetX on mouse/touch move
+      const canvasElement = document.getElementById("gameCanvas");
+      canvasElement.addEventListener("mousemove", (e) => {
+        let mouseX = e.offsetX;
+        let width = e.target.clientWidth;
+        targetX = (mouseX / width) * 16 - 8;
+      });
+      canvasElement.addEventListener("touchmove", (e) => {
+        let touch = e.touches[0];
+        let rect = e.target.getBoundingClientRect();
+        let touchX = touch.clientX - rect.left;
+        let width = e.target.clientWidth;
+        targetX = (touchX / width) * 16 - 8;
+        e.preventDefault();
+      });
+      // Use click/tap to jump as well
+      canvasElement.addEventListener("click", () => {
+        if (gameState === "playing" && !isJumping) {
           isJumping = true;
           jumpVelocity = 12;
         }
+      });
+
+      // Overlay instructions (including power-ups)
+      if (gameState === "start") {
+        const overlayText = document.getElementById("overlayText");
+        overlayText.innerText =
+          `Welcome to Creative Surge!\n\n` +
+          `Press Spacebar to Start\n` +
+          `(Press P to pause/resume)\n\n` +
+          `Instructions:\n` +
+          `• Use Left/Right arrows or A/D to move (or use mouse/touch for smooth control)\n` +
+          `• Press Spacebar or click/tap to jump (with a 360° spin!)\n` +
+          `• Collect yellow orbs (some are RAINBOW power orbs) for bonus points\n` +
+          `  (RAINBOW orbs grant temporary invincibility & boost your combo!)\n` +
+          `• Avoid red obstacles, holes, and flying toasters!\n\n` +
+          `Your High Score: ${localHighScore}`;
       }
-    } else if (gameState === "gameover") {
-      if (isSpace) {
-        restartGame();
-        overlay.style.display = "none";
-      }
+
+      animate();
     }
-  }
 
-  // Spawn items farther ahead along the path
-  function generateObstacle() {
-    const geo = new THREE.BoxGeometry(1, 1, 1);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const obs = new THREE.Mesh(geo, mat);
-    obs.position.x = (Math.random() - 0.5) * 16;
-    obs.position.y = 0.5;
-    obs.position.z = player.position.z - 150;
-    obs.rotation.x = Math.random() * Math.PI;
-    obs.rotation.y = Math.random() * Math.PI;
-    obs.userData.type = "obstacle";
-    scene.add(obs);
-    obstacles.push(obs);
-  }
-
-  function generateOrb() {
-    const geo = new THREE.SphereGeometry(0.5, 16, 16);
-    // 20% chance for a power orb; RAINBOW effect
-    let isPower = Math.random() < 0.2;
-    const mat = new THREE.MeshBasicMaterial({ color: isPower ? 0xff0000 : 0xffff00 });
-    const orb = new THREE.Mesh(geo, mat);
-    orb.position.x = (Math.random() - 0.5) * 16;
-    orb.position.y = 0.5;
-    orb.position.z = player.position.z - 170;
-    orb.userData.type = "orb";
-    orb.userData.isPower = isPower;
-    if (isPower) {
-      orb.userData.hue = Math.random();
-    }
-    scene.add(orb);
-    orbs.push(orb);
-  }
-
-  function generateHole() {
-    const holeWidth = Math.random() * 2 + 2;
-    const holeDepth = Math.random() * 1 + 2;
-    const holeGeo = new THREE.BoxGeometry(holeWidth, 0.1, holeDepth);
-    const holeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const hole = new THREE.Mesh(holeGeo, holeMat);
-    hole.position.x = (Math.random() - 0.5) * 16;
-    hole.position.y = 0.05;
-    hole.position.z = player.position.z - 150;
-    hole.userData = { width: holeWidth, depth: holeDepth };
-    scene.add(hole);
-    holes.push(hole);
-  }
-
-  // Generate a funny air obstacle—a flying toaster!
-  function generateAirObstacle() {
-    const toasterGroup = new THREE.Group();
-    // Toaster body
-    const bodyGeo = new THREE.BoxGeometry(1.5, 0.6, 1.2);
-    const bodyMat = new THREE.MeshBasicMaterial({ color: 0xFFA500 });
-    const toasterBody = new THREE.Mesh(bodyGeo, bodyMat);
-    toasterGroup.add(toasterBody);
-    // Toaster lever
-    const leverGeo = new THREE.BoxGeometry(0.2, 0.2, 0.8);
-    const leverMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const lever = new THREE.Mesh(leverGeo, leverMat);
-    lever.position.set(0.85, 0, 0);
-    toasterGroup.add(lever);
-    // Spawn at mid-air level
-    toasterGroup.position.x = (Math.random() - 0.5) * 16;
-    toasterGroup.position.y = 2.5;
-    toasterGroup.position.z = player.position.z - 150;
-    toasterGroup.rotation.y = Math.random() * Math.PI * 2;
-    toasterGroup.userData.type = "airObstacle";
-    scene.add(toasterGroup);
-    airObstacles.push(toasterGroup);
-  }
-
-  // Extended collision check
-  function checkCollisions(obj) {
-    if (obj.userData.type === "obstacle") {
-      const playerBox = getPlayerCollisionBox();
-      const objBox = new THREE.Box3().setFromObject(obj);
-      return playerBox.intersectsBox(objBox);
-    } else {
-      const playerBox = new THREE.Box3().setFromObject(player);
-      const objBox = new THREE.Box3().setFromObject(obj);
-      return playerBox.intersectsBox(objBox);
-    }
-  }
-
-  function triggerGameOver() {
-    gameState = "gameover";
-    invincible = false;
-    comboMultiplier = 1;
-    if (Math.floor(score) > localHighScore) {
-      localHighScore = Math.floor(score);
-      localStorage.setItem("highscore", localHighScore);
-    }
-    // Camera shake effect
-    const originalCamPos = camera.position.clone();
-    let shakeTime = 300;
-    const shakeInterval = setInterval(() => {
-      camera.position.x = originalCamPos.x + (Math.random() - 0.5) * 0.5;
-      shakeTime -= 50;
-      if (shakeTime <= 0) {
-        clearInterval(shakeInterval);
-        camera.position.copy(originalCamPos);
-      }
-    }, 50);
-    const overlay = document.getElementById("overlay");
-    const overlayText = document.getElementById("overlayText");
-    overlayText.innerText = 
-      `GAME OVER\n` +
-      `Final Score: ${Math.floor(score)}\n` +
-      `High Score: ${localHighScore}\n\n` +
-      `Press Spacebar to Restart`;
-    overlay.style.display = "flex";
-  }
-
-  function restartGame() {
-    gameState = "playing";
-    score = 0;
-    gameSpeed = 0.1;
-    isJumping = false;
-    jumpVelocity = 0;
-    invincible = false;
-    comboMultiplier = 1;
-    if (playerOutline) {
-      player.remove(playerOutline);
-      playerOutline = null;
-    }
-    obstacles.forEach(obs => scene.remove(obs));
-    obstacles = [];
-    orbs.forEach(orb => scene.remove(orb));
-    orbs = [];
-    holes.forEach(hole => scene.remove(hole));
-    holes = [];
-    airObstacles.forEach(airObs => scene.remove(airObs));
-    airObstacles = [];
-
-    player.position.set(0, 0, 10);
-    targetX = player.position.x;
-
-    lastTime = performance.now();
-    obstacleTimer = baseObstacleInterval;
-    orbTimer = baseOrbInterval;
-    holeTimer = baseHoleInterval;
-    airObstacleTimer = baseAirObstacleInterval;
-  }
-
-  function animate() {
-    requestAnimationFrame(animate);
-    const currentTime = performance.now();
-    const deltaTime = currentTime - lastTime;
-    lastTime = currentTime;
-
-    if (gameState === "playing") {
-      score += gameSpeed * (deltaTime / 16.67);
-      document.getElementById("score").innerText = `Score: ${Math.floor(score)} | Multiplier: x${comboMultiplier}`;
-
-      // Update invincibility timer, outline, power-up bar, and dynamic "POWERED UP!" text if active
-      if (invincible) {
-        invincibleTimer -= deltaTime;
-        if (playerOutline) {
-          outlineHue = (outlineHue + deltaTime / 5000) % 1;
-          playerOutline.material.color.setHSL(outlineHue, 1, 0.5);
+    // Countdown before gameplay starts
+    function startCountdown() {
+      gameState = "countdown";
+      let count = 3;
+      const overlayText = document.getElementById("overlayText");
+      const countdownInterval = setInterval(() => {
+        overlayText.innerText = `Get Ready!\n\n${count}`;
+        count--;
+        if (count < 0) {
+          clearInterval(countdownInterval);
+          overlayText.innerText = "";
+          document.getElementById("overlay").style.display = "none";
+          gameState = "playing";
         }
-        const powerBar = document.getElementById("powerBar");
-        const containerWidth = 300;
-        powerBar.style.width = ((invincibleTimer / 10000) * containerWidth) + "px";
-        document.getElementById("powerBarContainer").style.display = "block";
-        powerTextHue = (powerTextHue + deltaTime / 5000) % 1;
-        document.getElementById("powerText").style.color = `hsl(${powerTextHue * 360}, 100%, 50%)`;
-        document.getElementById("powerText").style.display = "block";
-        if (invincibleTimer <= 0) {
-          invincible = false;
-          player.children[0].material.color.set(0x00ff00);
-          if (playerOutline) {
-            player.remove(playerOutline);
-            playerOutline = null;
+      }, 1000);
+    }
+
+    function onKeyDown(e) {
+      // Check for spacebar using e.key, e.code, and e.keyCode as fallback
+      const isSpace = e.key === " " || e.key === "Spacebar" || e.code === "Space" || e.keyCode === 32;
+      // Check for pause key ("p" or "P")
+      const isPause = e.key === "p" || e.key === "P";
+      if (isSpace || isPause) {
+        e.preventDefault();
+      }
+      const overlay = document.getElementById("overlay");
+      const overlayText = document.getElementById("overlayText");
+
+      if (gameState === "start") {
+        if (isSpace) {
+          startCountdown();
+        }
+      } else if (gameState === "playing") {
+        if (isPause) {
+          gameState = "paused";
+          overlayText.innerText = "Paused\n\nPress P to resume";
+          overlay.style.display = "flex";
+          return;
+        }
+        const step = 3;
+        if (e.key === "ArrowLeft" || e.key === "a") {
+          targetX = Math.max(targetX - step, -8);
+        } else if (e.key === "ArrowRight" || e.key === "d") {
+          targetX = Math.min(targetX + step, 8);
+        } else if (isSpace) {
+          if (!isJumping) {
+            isJumping = true;
+            jumpVelocity = 12;
           }
+        }
+      } else if (gameState === "paused") {
+        if (isPause) {
+          gameState = "playing";
+          overlay.style.display = "none";
+        }
+      } else if (gameState === "gameover") {
+        if (isSpace) {
+          restartGame();
+          overlay.style.display = "none";
+        }
+      }
+    }
+
+    // Spawn items farther ahead along the path
+    function generateObstacle() {
+      const geo = new THREE.BoxGeometry(1, 1, 1);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const obs = new THREE.Mesh(geo, mat);
+      obs.position.x = (Math.random() - 0.5) * 16;
+      obs.position.y = 0.5;
+      obs.position.z = player.position.z - 150;
+      obs.rotation.x = Math.random() * Math.PI;
+      obs.rotation.y = Math.random() * Math.PI;
+      obs.userData.type = "obstacle";
+      scene.add(obs);
+      obstacles.push(obs);
+    }
+
+    function generateOrb() {
+      const geo = new THREE.SphereGeometry(0.5, 16, 16);
+      // 5% chance for a power orb; RAINBOW effect (unchanged as per your request)
+      let isPower = Math.random() < 0.05;
+      const mat = new THREE.MeshBasicMaterial({ color: isPower ? 0xff0000 : 0xffff00 });
+      const orb = new THREE.Mesh(geo, mat);
+      orb.position.x = (Math.random() - 0.5) * 16;
+      orb.position.y = 0.5;
+      orb.position.z = player.position.z - 170;
+      orb.userData.type = "orb";
+      orb.userData.isPower = isPower;
+      if (isPower) {
+        orb.userData.hue = Math.random();
+      }
+      scene.add(orb);
+      orbs.push(orb);
+    }
+
+    function generateHole() {
+      const holeWidth = Math.random() * 2 + 2;
+      const holeDepth = Math.random() * 1 + 2;
+      const holeGeo = new THREE.BoxGeometry(holeWidth, 0.1, holeDepth);
+      const holeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const hole = new THREE.Mesh(holeGeo, holeMat);
+      hole.position.x = (Math.random() - 0.5) * 16;
+      hole.position.y = 0.05;
+      hole.position.z = player.position.z - 150;
+      hole.userData = { width: holeWidth, depth: holeDepth };
+      scene.add(hole);
+      holes.push(hole);
+    }
+
+    // Generate a funny air obstacle—a flying toaster!
+    function generateAirObstacle() {
+      const toasterGroup = new THREE.Group();
+      // Toaster body
+      const bodyGeo = new THREE.BoxGeometry(1.5, 0.6, 1.2);
+      const bodyMat = new THREE.MeshBasicMaterial({ color: 0xFFA500 });
+      const toasterBody = new THREE.Mesh(bodyGeo, bodyMat);
+      toasterGroup.add(toasterBody);
+      // Toaster lever
+      const leverGeo = new THREE.BoxGeometry(0.2, 0.2, 0.8);
+      const leverMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const lever = new THREE.Mesh(leverGeo, leverMat);
+      lever.position.set(0.85, 0, 0);
+      toasterGroup.add(lever);
+      // Spawn at mid-air level
+      toasterGroup.position.x = (Math.random() - 0.5) * 16;
+      toasterGroup.position.y = 2.5;
+      toasterGroup.position.z = player.position.z - 150;
+      toasterGroup.rotation.y = Math.random() * Math.PI * 2;
+      toasterGroup.userData.type = "airObstacle";
+      scene.add(toasterGroup);
+      airObstacles.push(toasterGroup);
+    }
+
+    // Extended collision check
+    function checkCollisions(obj) {
+      if (obj.userData.type === "obstacle") {
+        const playerBox = getPlayerCollisionBox();
+        const objBox = new THREE.Box3().setFromObject(obj);
+        return playerBox.intersectsBox(objBox);
+      } else {
+        const playerBox = new THREE.Box3().setFromObject(player);
+        const objBox = new THREE.Box3().setFromObject(obj);
+        return playerBox.intersectsBox(objBox);
+      }
+    }
+
+    function triggerGameOver() {
+      gameState = "gameover";
+      invincible = false;
+      comboMultiplier = 1;
+      if (Math.floor(score) > localHighScore) {
+        localHighScore = Math.floor(score);
+        localStorage.setItem("highscore", localHighScore);
+      }
+      // Camera shake effect
+      const originalCamPos = camera.position.clone();
+      let shakeTime = 300;
+      const shakeInterval = setInterval(() => {
+        camera.position.x = originalCamPos.x + (Math.random() - 0.5) * 0.5;
+        shakeTime -= 50;
+        if (shakeTime <= 0) {
+          clearInterval(shakeInterval);
+          camera.position.copy(originalCamPos);
+        }
+      }, 50);
+      const overlay = document.getElementById("overlay");
+      const overlayText = document.getElementById("overlayText");
+      overlayText.innerText =
+        `GAME OVER\n` +
+        `Final Score: ${Math.floor(score)}\n` +
+        `High Score: ${localHighScore}\n\n` +
+        `Press Spacebar to Restart`;
+      overlay.style.display = "flex";
+    }
+
+    function restartGame() {
+      gameState = "playing";
+      score = 0;
+      gameSpeed = 0.1;
+      isJumping = false;
+      jumpVelocity = 0;
+      invincible = false;
+      comboMultiplier = 1;
+      if (playerOutline) {
+        player.remove(playerOutline);
+        playerOutline = null;
+      }
+      obstacles.forEach(obs => scene.remove(obs));
+      obstacles = [];
+      orbs.forEach(orb => scene.remove(orb));
+      orbs = [];
+      holes.forEach(hole => scene.remove(hole));
+      holes = [];
+      airObstacles.forEach(airObs => scene.remove(airObs));
+      airObstacles = [];
+
+      // Reset player position and orientation
+      player.position.set(0, 0, 10);
+      player.rotation.set(0, 0, 0);
+      targetX = player.position.x;
+
+      lastTime = performance.now();
+      obstacleTimer = baseObstacleInterval;
+      orbTimer = baseOrbInterval;
+      holeTimer = baseHoleInterval;
+      airObstacleTimer = baseAirObstacleInterval;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const currentTime = performance.now();
+      const deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
+
+      if (gameState === "playing") {
+        score += gameSpeed * (deltaTime / 16.67);
+        document.getElementById("score").innerText = `Score: ${Math.floor(score)} | Multiplier: x${comboMultiplier}`;
+
+        // Update power-up effects if invincible
+        if (invincible) {
+          invincibleTimer -= deltaTime;
+          if (playerOutline) {
+            outlineHue = (outlineHue + deltaTime / 5000) % 1;
+            playerOutline.material.color.setHSL(outlineHue, 1, 0.5);
+          }
+          const powerBar = document.getElementById("powerBar");
+          const containerWidth = 300;
+          powerBar.style.width = ((invincibleTimer / 10000) * containerWidth) + "px";
+          document.getElementById("powerBarContainer").style.display = "block";
+          powerTextHue = (powerTextHue + deltaTime / 5000) % 1;
+          document.getElementById("powerText").style.color = `hsl(${powerTextHue * 360}, 100%, 50%)`;
+          document.getElementById("powerText").style.display = "block";
+          if (invincibleTimer <= 0) {
+            invincible = false;
+            player.children[0].material.color.set(0x00ff00);
+            if (playerOutline) {
+              player.remove(playerOutline);
+              playerOutline = null;
+            }
+            document.getElementById("powerBarContainer").style.display = "none";
+            document.getElementById("powerText").style.display = "none";
+          }
+        } else {
           document.getElementById("powerBarContainer").style.display = "none";
           document.getElementById("powerText").style.display = "none";
         }
-      } else {
-        document.getElementById("powerBarContainer").style.display = "none";
-        document.getElementById("powerText").style.display = "none";
-      }
 
-      // Smooth horizontal movement (reduced factor for more car-like glide)
-      player.position.x += (targetX - player.position.x) * 0.2;
-      camera.position.x += (player.position.x - camera.position.x) * 0.2;
+        // Smooth horizontal movement (car-like glide)
+        player.position.x += (targetX - player.position.x) * 0.2;
+        camera.position.x += (player.position.x - camera.position.x) * 0.2;
 
-      // 360 Spin while jumping
-      if (isJumping) {
-        const dt = deltaTime / 1000;
-        jumpVelocity += gravity * dt;
-        player.position.y += jumpVelocity * dt;
-        // Add a constant roll (360° in 0.7 sec)
-        player.rotation.z += (2 * Math.PI / 0.7) * dt;
-        if (player.position.y <= 0) {
-          player.position.y = 0;
-          isJumping = false;
-          jumpVelocity = 0;
-          // Reset roll to level (modulo 2π)
-          player.rotation.z = 0;
-        }
-      }
-
-      for (let i = obstacles.length - 1; i >= 0; i--) {
-        const obs = obstacles[i];
-        obs.position.z += gameSpeed * (deltaTime / 16.67);
-        obs.rotation.x += 0.01 * (deltaTime / 16.67);
-        obs.rotation.y += 0.01 * (deltaTime / 16.67);
-        if (obs.position.z > camera.position.z + 10) {
-          scene.remove(obs);
-          obstacles.splice(i, 1);
-        } else if (!invincible && checkCollisions(obs)) {
-          triggerGameOver();
-        }
-      }
-
-      for (let i = orbs.length - 1; i >= 0; i--) {
-        const orb = orbs[i];
-        orb.position.z += gameSpeed * (deltaTime / 16.67);
-        if (orb.userData.isPower) {
-          orb.userData.hue = (orb.userData.hue + deltaTime / 5000) % 1;
-          orb.material.color.setHSL(orb.userData.hue, 1, 0.5);
-        } else {
-          orb.rotation.y += 0.02 * (deltaTime / 16.67);
-        }
-        if (orb.position.z > camera.position.z + 10) {
-          scene.remove(orb);
-          orbs.splice(i, 1);
-        } else if (checkCollisions(orb)) {
-          if (currentTime - lastOrbTime < 1000) {
-            comboMultiplier++;
-          } else {
-            comboMultiplier = 1;
+        // 360° Spin while jumping
+        if (isJumping) {
+          const dt = deltaTime / 1000;
+          jumpVelocity += gravity * dt;
+          player.position.y += jumpVelocity * dt;
+          // Complete a full 360° spin in ~0.7 sec
+          player.rotation.z += (2 * Math.PI / 0.7) * dt;
+          if (player.position.y <= 0) {
+            player.position.y = 0;
+            isJumping = false;
+            jumpVelocity = 0;
+            player.rotation.z = 0;
           }
-          lastOrbTime = currentTime;
-          if (orb.userData.isPower) {
-            invincible = true;
-            invincibleTimer = 10000; // 10 seconds of invincibility
-            player.children[0].material.color.set(0xFFD700);
-            if (!playerOutline) {
-              const outlineGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(3, 1.5, 5));
-              const outlineMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
-              playerOutline = new THREE.LineSegments(outlineGeo, outlineMat);
-              playerOutline.renderOrder = 1;
-              outlineHue = 0;
-              player.add(playerOutline);
-            }
-          }
-          score += 50 * comboMultiplier;
-          scene.remove(orb);
-          orbs.splice(i, 1);
         }
-      }
 
-      for (let i = holes.length - 1; i >= 0; i--) {
-        const hole = holes[i];
-        hole.position.z += gameSpeed * (deltaTime / 16.67);
-        if (hole.position.z > camera.position.z + 10) {
-          scene.remove(hole);
-          holes.splice(i, 1);
-        } else {
-          const halfWidth = hole.userData.width / 2;
-          const halfDepth = hole.userData.depth / 2;
-          if (!invincible &&
-              player.position.y <= 0.1 &&
-              player.position.x >= hole.position.x - halfWidth &&
-              player.position.x <= hole.position.x + halfWidth &&
-              player.position.z >= hole.position.z - halfDepth &&
-              player.position.z <= hole.position.z + halfDepth) {
+        // Update obstacles
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          const obs = obstacles[i];
+          obs.position.z += gameSpeed * (deltaTime / 16.67);
+          obs.rotation.x += 0.01 * (deltaTime / 16.67);
+          obs.rotation.y += 0.01 * (deltaTime / 16.67);
+          if (obs.position.z > camera.position.z + 10) {
+            scene.remove(obs);
+            obstacles.splice(i, 1);
+          } else if (!invincible && checkCollisions(obs)) {
             triggerGameOver();
           }
         }
-      }
 
-      for (let i = airObstacles.length - 1; i >= 0; i--) {
-        const airObs = airObstacles[i];
-        airObs.position.z += gameSpeed * (deltaTime / 16.67);
-        if (airObs.position.z > camera.position.z + 10) {
-          scene.remove(airObs);
-          airObstacles.splice(i, 1);
-        } else if (!invincible && checkCollisions(airObs)) {
-          triggerGameOver();
+        // Update orbs and handle power-ups
+        for (let i = orbs.length - 1; i >= 0; i--) {
+          const orb = orbs[i];
+          orb.position.z += gameSpeed * (deltaTime / 16.67);
+          if (orb.userData.isPower) {
+            orb.userData.hue = (orb.userData.hue + deltaTime / 5000) % 1;
+            orb.material.color.setHSL(orb.userData.hue, 1, 0.5);
+          } else {
+            orb.rotation.y += 0.02 * (deltaTime / 16.67);
+          }
+          if (orb.position.z > camera.position.z + 10) {
+            scene.remove(orb);
+            orbs.splice(i, 1);
+          } else if (checkCollisions(orb)) {
+            if (currentTime - lastOrbTime < 1000) {
+              comboMultiplier++;
+            } else {
+              comboMultiplier = 1;
+            }
+            lastOrbTime = currentTime;
+            if (orb.userData.isPower) {
+              invincible = true;
+              invincibleTimer = 10000; // 10 seconds of invincibility
+              player.children[0].material.color.set(0xFFD700);
+              if (!playerOutline) {
+                const outlineGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(3, 1.5, 5));
+                const outlineMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+                playerOutline = new THREE.LineSegments(outlineGeo, outlineMat);
+                playerOutline.renderOrder = 1;
+                outlineHue = 0;
+                player.add(playerOutline);
+              }
+            }
+            score += 50 * comboMultiplier;
+            scene.remove(orb);
+            orbs.splice(i, 1);
+          }
         }
+
+        // Update holes (ignored if invincible)
+        for (let i = holes.length - 1; i >= 0; i--) {
+          const hole = holes[i];
+          hole.position.z += gameSpeed * (deltaTime / 16.67);
+          if (hole.position.z > camera.position.z + 10) {
+            scene.remove(hole);
+            holes.splice(i, 1);
+          } else {
+            const halfWidth = hole.userData.width / 2;
+            const halfDepth = hole.userData.depth / 2;
+            if (!invincible &&
+                player.position.y <= 0.1 &&
+                player.position.x >= hole.position.x - halfWidth &&
+                player.position.x <= hole.position.x + halfWidth &&
+                player.position.z >= hole.position.z - halfDepth &&
+                player.position.z <= hole.position.z + halfDepth) {
+              triggerGameOver();
+            }
+          }
+        }
+
+        // Update air obstacles
+        for (let i = airObstacles.length - 1; i >= 0; i--) {
+          const airObs = airObstacles[i];
+          airObs.position.z += gameSpeed * (deltaTime / 16.67);
+          if (airObs.position.z > camera.position.z + 10) {
+            scene.remove(airObs);
+            airObstacles.splice(i, 1);
+          } else if (!invincible && checkCollisions(airObs)) {
+            triggerGameOver();
+          }
+        }
+
+        // Update spawn timers
+        obstacleTimer -= deltaTime;
+        orbTimer -= deltaTime;
+        holeTimer -= deltaTime;
+        airObstacleTimer -= deltaTime;
+        if (obstacleTimer <= 0) {
+          generateObstacle();
+          obstacleTimer = Math.max(500, baseObstacleInterval - Math.floor(score / 10));
+        }
+        if (orbTimer <= 0) {
+          generateOrb();
+          orbTimer = Math.max(1000, baseOrbInterval - Math.floor(score / 20));
+        }
+        if (holeTimer <= 0) {
+          generateHole();
+          holeTimer = baseHoleInterval;
+        }
+        if (airObstacleTimer <= 0) {
+          generateAirObstacle();
+          airObstacleTimer = baseAirObstacleInterval;
+        }
+
+        gameSpeed += 0.0001 * deltaTime;
       }
 
-      obstacleTimer -= deltaTime;
-      orbTimer -= deltaTime;
-      holeTimer -= deltaTime;
-      airObstacleTimer -= deltaTime;
-      if (obstacleTimer <= 0) {
-        generateObstacle();
-        obstacleTimer = Math.max(500, baseObstacleInterval - Math.floor(score / 10));
-      }
-      if (orbTimer <= 0) {
-        generateOrb();
-        orbTimer = Math.max(1000, baseOrbInterval - Math.floor(score / 20));
-      }
-      if (holeTimer <= 0) {
-        generateHole();
-        holeTimer = baseHoleInterval;
-      }
-      if (airObstacleTimer <= 0) {
-        generateAirObstacle();
-        airObstacleTimer = baseAirObstacleInterval;
-      }
-
-      gameSpeed += 0.0001 * deltaTime;
+      renderer.render(scene, camera);
     }
 
-    renderer.render(scene, camera);
-  }
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
 
-  window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+    // Attach keydown event to the window for broader compatibility
+    window.addEventListener("keydown", onKeyDown);
 
-  // Attach keydown event to the window for broader compatibility
-  window.addEventListener("keydown", onKeyDown);
-
-  init();
+    init();
   </script>
 </body>
 </html>
