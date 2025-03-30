@@ -82,7 +82,7 @@ Press Spacebar to Start
 
 Instructions:
 - Use Left/Right arrows or A/D to move
-- Use Up arrow or W to jump
+- Press Spacebar to jump
 - Collect yellow orbs for bonus points
 - Avoid red obstacles and holes in the road
 
@@ -212,7 +212,7 @@ Your High Score: 0
         `Press Spacebar to Start\n\n` +
         `Instructions:\n` +
         `- Use Left/Right arrows or A/D to move\n` +
-        `- Use Up arrow or W to jump\n` +
+        `- Press Spacebar to jump\n` +
         `- Collect yellow orbs for bonus points\n` +
         `- Avoid red obstacles and holes in the road\n\n` +
         `Your High Score: ${localHighScore}`;
@@ -231,13 +231,12 @@ Your High Score: 0
         overlay.style.display = "none";
       }
     } else if (gameState === "playing") {
-      // Increase step size for more responsive movement
       const step = 2;
       if (e.key === "ArrowLeft" || e.key === "a") {
         targetX = Math.max(targetX - step, -8);
       } else if (e.key === "ArrowRight" || e.key === "d") {
         targetX = Math.min(targetX + step, 8);
-      } else if (e.key === "ArrowUp" || e.key === "w") {
+      } else if (e.key === " ") {
         if (!isJumping) {
           isJumping = true;
           jumpVelocity = 12;
@@ -363,9 +362,8 @@ Your High Score: 0
         }
       }
 
-      // Increased smoothing factor for horizontal movement
+      // Fluid horizontal movement with increased smoothing
       player.position.x += (targetX - player.position.x) * 0.2;
-      // Slightly faster camera follow for a smoother feel
       camera.position.x += (player.position.x - camera.position.x) * 0.1;
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
