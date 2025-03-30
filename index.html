@@ -231,7 +231,8 @@ Your High Score: 0
         overlay.style.display = "none";
       }
     } else if (gameState === "playing") {
-      const step = 2;
+      // Increase step size for more responsive movement
+      const step = 3;
       if (e.key === "ArrowLeft" || e.key === "a") {
         targetX = Math.max(targetX - step, -8);
       } else if (e.key === "ArrowRight" || e.key === "d") {
@@ -250,13 +251,15 @@ Your High Score: 0
     }
   }
 
+  // In each generator, we now spawn items farther from the player.
   function generateObstacle() {
     const geo = new THREE.BoxGeometry(1, 1, 1);
     const mat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     const obs = new THREE.Mesh(geo, mat);
     obs.position.x = (Math.random() - 0.5) * 16;
     obs.position.y = 0.5;
-    obs.position.z = player.position.z - 50;
+    // Spawn obstacle farther along the path
+    obs.position.z = player.position.z - 150;
     obs.rotation.x = Math.random() * Math.PI;
     obs.rotation.y = Math.random() * Math.PI;
     obs.userData.type = "obstacle";
@@ -270,7 +273,8 @@ Your High Score: 0
     const orb = new THREE.Mesh(geo, mat);
     orb.position.x = (Math.random() - 0.5) * 16;
     orb.position.y = 0.5;
-    orb.position.z = player.position.z - 70;
+    // Spawn orb further away from the player
+    orb.position.z = player.position.z - 170;
     orb.userData.type = "orb";
     scene.add(orb);
     orbs.push(orb);
@@ -284,7 +288,8 @@ Your High Score: 0
     const hole = new THREE.Mesh(holeGeo, holeMat);
     hole.position.x = (Math.random() - 0.5) * 16;
     hole.position.y = 0.05;
-    hole.position.z = player.position.z - 60;
+    // Spawn hole farther along the path
+    hole.position.z = player.position.z - 150;
     hole.userData = { width: holeWidth, depth: holeDepth };
     scene.add(hole);
     holes.push(hole);
@@ -362,9 +367,10 @@ Your High Score: 0
         }
       }
 
-      // Fluid horizontal movement with increased smoothing
-      player.position.x += (targetX - player.position.x) * 0.2;
-      camera.position.x += (player.position.x - camera.position.x) * 0.1;
+      // Faster, more reactive horizontal movement
+      player.position.x += (targetX - player.position.x) * 0.4;
+      // Adjust camera follow accordingly
+      camera.position.x += (player.position.x - camera.position.x) * 0.2;
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
