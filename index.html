@@ -12,7 +12,6 @@
       padding: 0;
       width: 100%;
       height: 100%;
-      /* Updated background with a futuristic gradient */
       background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
       overflow: hidden;
       font-family: 'Orbitron', sans-serif;
@@ -142,7 +141,7 @@ Instructions:
 • Press Spacebar or click/tap to jump (with a 360° spin!)
 • Collect yellow orbs (some are RAINBOW power orbs) for bonus points  
   (RAINBOW orbs grant temporary invincibility & boost your combo!)
-• Avoid red obstacles, holes, and flying toasters!
+• Avoid red meteorites, red space poles, and red debris!
 
 Your High Score: 0
       </div>
@@ -154,36 +153,42 @@ Your High Score: 0
   <script>
     /***********************************************
      * Enhanced Creative Surge Code with a wireframe
-     * background plane, Rainbow Power Orbs, Pause, etc.
+     * background plane, full‑width spawns, and red space‑theme poles.
      ***********************************************/
+    // Define constants for road dimensions and UFO margin to keep the UFO on the road
+    const roadWidth = 20;
+    const halfRoadWidth = roadWidth / 2;
+    const ufoMargin = 2; // Adjust based on the UFO's width
+    const maxPlayerX = halfRoadWidth - ufoMargin;
+
     let scene, camera, renderer;
     let player, targetX;
     let obstacles = [];
     let orbs = [];
-    let holes = [];
-    let airObstacles = []; // For flying toasters
+    let poles = [];  // red space‑theme poles
+    let airObstacles = [];
     let score = 0;
     let gameSpeed = 0.1;
     let lastTime = performance.now();
     let obstacleTimer = 1500;
     let orbTimer = 3000;
-    let holeTimer = 5000;
+    let poleTimer = 5000;
     let airObstacleTimer = 4000;
     let gameState = "start"; // "start", "countdown", "playing", "paused", "gameover"
 
     const baseObstacleInterval = 1500;
     const baseOrbInterval = 3000;
-    const baseHoleInterval = 5000;
+    const basePoleInterval = 5000;
     const baseAirObstacleInterval = 4000;
 
     // Jump physics
     let isJumping = false;
     let jumpVelocity = 0;
     const gravity = -20;
-    let jumpStartTime = 0; // Record when jump begins
-    const expectedJumpDuration = 1.2; // Expected jump duration (in seconds) to complete a full 360° spin
+    let jumpStartTime = 0;
+    const expectedJumpDuration = 1.2;
 
-    // Power-up & Combo variables
+    // Power‑up & Combo
     let invincible = false;
     let invincibleTimer = 0;
     let comboMultiplier = 1;
@@ -192,17 +197,20 @@ Your High Score: 0
     // Local high score
     let localHighScore = Number(localStorage.getItem("highscore")) || 0;
 
-    // For player outline (rainbow border)
+    // Outline for power‑up
     let playerOutline = null;
-    let outlineHue = 0; // for cycling outline hue
+    let outlineHue = 0;
 
-    // For "POWERED UP!" text rainbow effect
+    // "POWERED UP!" rainbow text
     let powerTextHue = 0;
 
-    // Additional: wireframe "grid" plane in the background
+    // Background grid
     let backgroundGrid;
 
-    // Returns a collision box for obstacles (based on player's feet)
+    // Flame group for jump
+    let flameGroup;
+
+    // Returns a collision box near player's feet
     function getPlayerCollisionBox() {
       const halfWidth = 1.25;
       const boxHeight = 0.4;
@@ -216,7 +224,7 @@ Your High Score: 0
     function init() {
       scene = new THREE.Scene();
 
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
       camera.position.set(0, 5, 20);
 
       const canvas = document.getElementById("gameCanvas");
@@ -230,17 +238,18 @@ Your High Score: 0
       directionalLight.position.set(0, 50, 50);
       scene.add(directionalLight);
 
-      // Ground plane
-      const groundGeo = new THREE.PlaneGeometry(20, 1000);
-      const groundMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-      const ground = new THREE.Mesh(groundGeo, groundMat);
-      ground.rotation.x = -Math.PI / 2;
-      ground.position.z = -490;
-      scene.add(ground);
+      // Road plane uses roadWidth constant
+      const roadGeo = new THREE.PlaneGeometry(roadWidth, 3000);
+      roadGeo.translate(0, -1500, 0);
+      const roadMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
+      const road = new THREE.Mesh(roadGeo, roadMat);
+      road.rotation.x = -Math.PI / 2;
+      road.position.set(0, 0, 19);
+      scene.add(road);
 
-      // Add a wireframe background plane behind the ground
-      // to emulate a futuristic grid lines look
-      const bgGridGeo = new THREE.PlaneGeometry(40, 2000, 40, 200); 
+      // Background wireframe grid
+      // Modified the grid width to match the player's maximum movement range (roadWidth)
+      const bgGridGeo = new THREE.PlaneGeometry(roadWidth, 3000, 40, 200);
       const bgGridMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         wireframe: true,
@@ -249,69 +258,89 @@ Your High Score: 0
       });
       backgroundGrid = new THREE.Mesh(bgGridGeo, bgGridMat);
       backgroundGrid.rotation.x = -Math.PI / 2;
-      backgroundGrid.position.y = -0.1; // slightly below ground
-      backgroundGrid.position.z = -500; // behind the ground
+      backgroundGrid.position.y = -0.1;
+      backgroundGrid.position.z = -1500; 
       scene.add(backgroundGrid);
 
-      // --- Player: "Futuristic Racer" design ---
-      const playerGroup = new THREE.Group();
+      // UFO group
+      const ufoGroup = new THREE.Group();
 
-      // Main body: streamlined green box
-      const bodyGeo = new THREE.BoxGeometry(2.5, 1, 4);
-      const bodyMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-      const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.position.set(0, 0, 0);
-      playerGroup.add(body);
+      // UFO base
+      const baseGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.3, 32);
+      const baseMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, flatShading: true });
+      const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+      baseMesh.position.y = 0.15;
+      ufoGroup.add(baseMesh);
 
-      // Cockpit: blue sphere on top
-      const cockpitGeo = new THREE.SphereGeometry(0.75, 16, 16);
-      const cockpitMat = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-      const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
-      cockpit.position.set(0, 0.75, -0.5);
-      playerGroup.add(cockpit);
+      // Glowing ring
+      const ringGeo = new THREE.TorusGeometry(1.65, 0.12, 16, 100);
+      const ringMat = new THREE.MeshPhongMaterial({
+        color: 0x66ccff,
+        emissive: 0x66ccff,
+        emissiveIntensity: 0.8,
+        flatShading: true
+      });
+      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      ringMesh.rotation.x = Math.PI / 2;
+      ringMesh.position.y = 0;
+      ufoGroup.add(ringMesh);
 
-      // Left fin: red box
-      const leftFinGeo = new THREE.BoxGeometry(0.1, 0.5, 1);
-      const finMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-      const leftFin = new THREE.Mesh(leftFinGeo, finMat);
-      leftFin.position.set(-1.35, 0, 0.5);
-      playerGroup.add(leftFin);
+      // UFO dome
+      const domeGeo = new THREE.SphereGeometry(1.2, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+      const domeMat = new THREE.MeshPhongMaterial({
+        color: 0xccccff,
+        transparent: true,
+        opacity: 0.8,
+        shininess: 150,
+        specular: 0xffffff
+      });
+      const domeMesh = new THREE.Mesh(domeGeo, domeMat);
+      domeMesh.position.y = 0.45;
+      ufoGroup.add(domeMesh);
 
-      // Right fin: mirrored red box
-      const rightFinGeo = new THREE.BoxGeometry(0.1, 0.5, 1);
-      const rightFin = new THREE.Mesh(rightFinGeo, finMat);
-      rightFin.position.set(1.35, 0, 0.5);
-      playerGroup.add(rightFin);
+      // Flame group for jump effect
+      flameGroup = new THREE.Group();
+      for (let i = 0; i < 3; i++) {
+        const flameGeo = new THREE.ConeGeometry(0.3, 1, 16);
+        const flameMat = new THREE.MeshBasicMaterial({
+          color: 0xff5533,
+          transparent: true,
+          opacity: 0.7
+        });
+        const flameCone = new THREE.Mesh(flameGeo, flameMat);
+        flameCone.rotation.x = Math.PI;
+        flameCone.position.y = -0.6;
+        flameCone.position.x = (i - 1) * 0.2;
+        flameGroup.add(flameCone);
+      }
+      flameGroup.visible = false;
+      ufoGroup.add(flameGroup);
 
-      // Rear fin: additional fin at the back
-      const rearFinGeo = new THREE.BoxGeometry(0.5, 0.1, 1);
-      const rearFin = new THREE.Mesh(rearFinGeo, finMat);
-      rearFin.position.set(0, 0.5, 2);
-      playerGroup.add(rearFin);
-
-      // Position player
-      playerGroup.position.set(0, 0, 10);
-      scene.add(playerGroup);
-      player = playerGroup;
+      // Position UFO and initialise targetX
+      ufoGroup.position.set(0, 0.5, 10);
+      scene.add(ufoGroup);
+      player = ufoGroup;
       targetX = player.position.x;
-      // --- End of Player Design ---
 
-      // Add intuitive control: update targetX on mouse/touch move
+      // Mouse/touch controls using roadWidth and clamping within the allowed range
       const canvasElement = document.getElementById("gameCanvas");
       canvasElement.addEventListener("mousemove", (e) => {
         let mouseX = e.offsetX;
         let width = e.target.clientWidth;
-        targetX = (mouseX / width) * 16 - 8;
+        targetX = (mouseX / width) * roadWidth - halfRoadWidth;
+        // Clamp targetX so the UFO stays within the road boundaries
+        targetX = Math.min(Math.max(targetX, -maxPlayerX), maxPlayerX);
       });
       canvasElement.addEventListener("touchmove", (e) => {
         let touch = e.touches[0];
         let rect = e.target.getBoundingClientRect();
         let touchX = touch.clientX - rect.left;
         let width = e.target.clientWidth;
-        targetX = (touchX / width) * 16 - 8;
+        targetX = (touchX / width) * roadWidth - halfRoadWidth;
+        // Clamp targetX for touch controls as well
+        targetX = Math.min(Math.max(targetX, -maxPlayerX), maxPlayerX);
         e.preventDefault();
       });
-      // Use click/tap to jump as well
       canvasElement.addEventListener("click", () => {
         if (gameState === "playing" && !isJumping) {
           isJumping = true;
@@ -320,7 +349,7 @@ Your High Score: 0
         }
       });
 
-      // Overlay instructions (including power-ups)
+      // Overlay instructions
       if (gameState === "start") {
         const overlayText = document.getElementById("overlayText");
         overlayText.innerText =
@@ -332,11 +361,11 @@ Your High Score: 0
           `• Press Spacebar or click/tap to jump (with a 360° spin!)\n` +
           `• Collect yellow orbs (some are RAINBOW power orbs) for bonus points\n` +
           `  (RAINBOW orbs grant temporary invincibility & boost your combo!)\n` +
-          `• Avoid red obstacles, holes, and flying toasters!\n\n` +
+          `• Avoid red meteorites, red space poles, and red debris!\n\n` +
           `Your High Score: ${localHighScore}`;
       }
 
-      // Add pause icon functionality (clicking the "P" icon also toggles pause)
+      // Pause icon event listener
       document.getElementById("pauseIcon").addEventListener("click", () => {
         if (gameState === "playing") {
           gameState = "paused";
@@ -351,7 +380,7 @@ Your High Score: 0
       animate();
     }
 
-    // Countdown before gameplay starts
+    // Countdown before starting
     function startCountdown() {
       gameState = "countdown";
       let count = 3;
@@ -369,20 +398,15 @@ Your High Score: 0
     }
 
     function onKeyDown(e) {
-      // Check for spacebar using e.key, e.code, and e.keyCode as fallback
       const isSpace = e.key === " " || e.key === "Spacebar" || e.code === "Space" || e.keyCode === 32;
-      // Check for pause key ("p" or "P") (case-insensitive)
       const isPause = e.key.toLowerCase() === "p";
-      if (isSpace || isPause) {
-        e.preventDefault();
-      }
+      if (isSpace || isPause) e.preventDefault();
+
       const overlay = document.getElementById("overlay");
       const overlayText = document.getElementById("overlayText");
 
       if (gameState === "start") {
-        if (isSpace) {
-          startCountdown();
-        }
+        if (isSpace) startCountdown();
       } else if (gameState === "playing") {
         if (isPause) {
           gameState = "paused";
@@ -391,11 +415,11 @@ Your High Score: 0
           return;
         }
         const step = 3;
-        // Fix for A/D keys (case-insensitive)
+        // Adjust targetX using keyboard controls and clamp it within [-maxPlayerX, maxPlayerX]
         if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") {
-          targetX = Math.max(targetX - step, -8);
+          targetX = Math.max(targetX - step, -maxPlayerX);
         } else if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") {
-          targetX = Math.min(targetX + step, 8);
+          targetX = Math.min(targetX + step, maxPlayerX);
         } else if (isSpace) {
           if (!isJumping) {
             isJumping = true;
@@ -416,12 +440,14 @@ Your High Score: 0
       }
     }
 
-    // Spawn items farther ahead along the path
+    // Spawning functions
+
+    // Red meteorite obstacle spanning full width
     function generateObstacle() {
-      const geo = new THREE.BoxGeometry(1, 1, 1);
-      const mat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const geo = new THREE.DodecahedronGeometry(0.8, 0);
+      const mat = new THREE.MeshPhongMaterial({ color: 0xff0000, flatShading: true });
       const obs = new THREE.Mesh(geo, mat);
-      obs.position.x = (Math.random() - 0.5) * 16;
+      obs.position.x = (Math.random() - 0.5) * roadWidth;
       obs.position.y = 0.5;
       obs.position.z = player.position.z - 150;
       obs.rotation.x = Math.random() * Math.PI;
@@ -431,75 +457,68 @@ Your High Score: 0
       obstacles.push(obs);
     }
 
+    // Orb spawning (using full width)
     function generateOrb() {
       const geo = new THREE.SphereGeometry(0.5, 16, 16);
-      // 5% chance for a power orb; RAINBOW effect
       let isPower = Math.random() < 0.05;
       const mat = new THREE.MeshBasicMaterial({ color: isPower ? 0xff0000 : 0xffff00 });
       const orb = new THREE.Mesh(geo, mat);
-      orb.position.x = (Math.random() - 0.5) * 16;
+      orb.position.x = (Math.random() - 0.5) * roadWidth;
       orb.position.y = 0.5;
       orb.position.z = player.position.z - 170;
       orb.userData.type = "orb";
       orb.userData.isPower = isPower;
-      if (isPower) {
-        orb.userData.hue = Math.random();
-      }
+      if (isPower) orb.userData.hue = Math.random();
       scene.add(orb);
       orbs.push(orb);
     }
 
-    function generateHole() {
-      const holeWidth = Math.random() * 2 + 2;
-      const holeDepth = Math.random() * 1 + 2;
-      const holeGeo = new THREE.BoxGeometry(holeWidth, 0.1, holeDepth);
-      const holeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-      const hole = new THREE.Mesh(holeGeo, holeMat);
-      hole.position.x = (Math.random() - 0.5) * 16;
-      hole.position.y = 0.05;
-      hole.position.z = player.position.z - 150;
-      hole.userData = { width: holeWidth, depth: holeDepth };
-      scene.add(hole);
-      holes.push(hole);
+    // Red space‑theme pole (replacing holes)
+    function generatePole() {
+      const poleHeight = 8;
+      const poleGeo = new THREE.CylinderGeometry(0.75, 0.75, poleHeight, 16);
+      const poleMat = new THREE.MeshBasicMaterial({ color: 0x990000 });
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.x = (Math.random() - 0.5) * roadWidth;
+      pole.position.y = poleHeight / 2;
+      pole.position.z = player.position.z - 150;
+      pole.userData.type = "pole";
+      scene.add(pole);
+      poles.push(pole);
     }
 
-    // Generate a funny air obstacle—a flying toaster!
+    // Air obstacle (using full width)
     function generateAirObstacle() {
-      const toasterGroup = new THREE.Group();
-      // Toaster body
-      const bodyGeo = new THREE.BoxGeometry(1.5, 0.6, 1.2);
-      const bodyMat = new THREE.MeshBasicMaterial({ color: 0xFFA500 });
-      const toasterBody = new THREE.Mesh(bodyGeo, bodyMat);
-      toasterGroup.add(toasterBody);
-      // Toaster lever
-      const leverGeo = new THREE.BoxGeometry(0.2, 0.2, 0.8);
-      const leverMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-      const lever = new THREE.Mesh(leverGeo, leverMat);
-      lever.position.set(0.85, 0, 0);
-      toasterGroup.add(lever);
-      // Spawn at mid-air level
-      toasterGroup.position.x = (Math.random() - 0.5) * 16;
-      toasterGroup.position.y = 2.5;
-      toasterGroup.position.z = player.position.z - 150;
-      toasterGroup.rotation.y = Math.random() * Math.PI * 2;
-      toasterGroup.userData.type = "airObstacle";
-      scene.add(toasterGroup);
-      airObstacles.push(toasterGroup);
+      const shipGroup = new THREE.Group();
+      const bodyGeo = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 16);
+      const bodyMat = new THREE.MeshPhongMaterial({ color: 0xff4444, flatShading: true });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.rotation.x = Math.PI / 2;
+      shipGroup.add(body);
+      const noseGeo = new THREE.ConeGeometry(0.4, 0.8, 16);
+      const noseMat = new THREE.MeshPhongMaterial({ color: 0xff2222, flatShading: true });
+      const nose = new THREE.Mesh(noseGeo, noseMat);
+      nose.position.x = 0.9;
+      nose.rotation.z = Math.PI / 2;
+      shipGroup.add(nose);
+
+      shipGroup.position.x = (Math.random() - 0.5) * roadWidth;
+      shipGroup.position.y = 3.5;
+      shipGroup.position.z = player.position.z - 150;
+      shipGroup.rotation.y = Math.random() * Math.PI * 2;
+      shipGroup.userData.type = "airObstacle";
+      scene.add(shipGroup);
+      airObstacles.push(shipGroup);
     }
 
-    // Extended collision check
+    // General collision check
     function checkCollisions(obj) {
-      if (obj.userData.type === "obstacle") {
-        const playerBox = getPlayerCollisionBox();
-        const objBox = new THREE.Box3().setFromObject(obj);
-        return playerBox.intersectsBox(objBox);
-      } else {
-        const playerBox = new THREE.Box3().setFromObject(player);
-        const objBox = new THREE.Box3().setFromObject(obj);
-        return playerBox.intersectsBox(objBox);
-      }
+      const playerBox = new THREE.Box3().setFromObject(player);
+      const objBox = new THREE.Box3().setFromObject(obj);
+      return playerBox.intersectsBox(objBox);
     }
 
+    // Trigger game over
     function triggerGameOver() {
       gameState = "gameover";
       invincible = false;
@@ -508,7 +527,6 @@ Your High Score: 0
         localHighScore = Math.floor(score);
         localStorage.setItem("highscore", localHighScore);
       }
-      // Camera shake effect
       const originalCamPos = camera.position.clone();
       let shakeTime = 300;
       const shakeInterval = setInterval(() => {
@@ -519,6 +537,7 @@ Your High Score: 0
           camera.position.copy(originalCamPos);
         }
       }, 50);
+
       const overlay = document.getElementById("overlay");
       const overlayText = document.getElementById("overlayText");
       overlayText.innerText =
@@ -529,6 +548,7 @@ Your High Score: 0
       overlay.style.display = "flex";
     }
 
+    // Restart the game
     function restartGame() {
       gameState = "playing";
       score = 0;
@@ -545,20 +565,19 @@ Your High Score: 0
       obstacles = [];
       orbs.forEach(orb => scene.remove(orb));
       orbs = [];
-      holes.forEach(hole => scene.remove(hole));
-      holes = [];
+      poles.forEach(pole => scene.remove(pole));
+      poles = [];
       airObstacles.forEach(airObs => scene.remove(airObs));
       airObstacles = [];
 
-      // Reset player position and orientation
-      player.position.set(0, 0, 10);
+      player.position.set(0, 0.5, 10);
       player.rotation.set(0, 0, 0);
       targetX = player.position.x;
 
       lastTime = performance.now();
       obstacleTimer = baseObstacleInterval;
       orbTimer = baseOrbInterval;
-      holeTimer = baseHoleInterval;
+      poleTimer = basePoleInterval;
       airObstacleTimer = baseAirObstacleInterval;
     }
 
@@ -572,15 +591,13 @@ Your High Score: 0
         score += gameSpeed * (deltaTime / 16.67);
         document.getElementById("score").innerText = `Score: ${Math.floor(score)} | Multiplier: x${comboMultiplier}`;
 
-        // Optionally scroll the background grid slightly forward
-        // so lines appear to move with obstacles
+        // Move background grid
         backgroundGrid.position.z += gameSpeed * (deltaTime / 16.67);
-        // If it moves too far, reset behind
         if (backgroundGrid.position.z > camera.position.z + 50) {
-          backgroundGrid.position.z -= 200; // shift it back to create a looping effect
+          backgroundGrid.position.z -= 200;
         }
 
-        // Update power-up effects if invincible
+        // Handle invincibility effects
         if (invincible) {
           invincibleTimer -= deltaTime;
           if (playerOutline) {
@@ -591,12 +608,14 @@ Your High Score: 0
           const containerWidth = 300;
           powerBar.style.width = ((invincibleTimer / 10000) * containerWidth) + "px";
           document.getElementById("powerBarContainer").style.display = "block";
+
           powerTextHue = (powerTextHue + deltaTime / 5000) % 1;
           document.getElementById("powerText").style.color = `hsl(${powerTextHue * 360}, 100%, 50%)`;
           document.getElementById("powerText").style.display = "block";
+
           if (invincibleTimer <= 0) {
             invincible = false;
-            player.children[0].material.color.set(0x00ff00);
+            player.children[2].material.color.set(0xccccff);
             if (playerOutline) {
               player.remove(playerOutline);
               playerOutline = null;
@@ -609,27 +628,34 @@ Your High Score: 0
           document.getElementById("powerText").style.display = "none";
         }
 
-        // Smooth horizontal movement (car-like glide)
-        player.position.x += (targetX - player.position.x) * 0.2;
-        camera.position.x += (player.position.x - camera.position.x) * 0.2;
+        // Smooth horizontal movement (smoothing factor increased to 0.3)
+        player.position.x += (targetX - player.position.x) * 0.3;
+        camera.position.x += (player.position.x - camera.position.x) * 0.3;
 
-        // Jump mechanics: vertical jump and continuous horizontal 360° spin over the expected jump duration
+        // Jump mechanics with 360° spin effect
         if (isJumping) {
           const dt = deltaTime / 1000;
           jumpVelocity += gravity * dt;
           player.position.y += jumpVelocity * dt;
-
-          // Calculate elapsed time since jump started and update rotation
           const elapsed = (currentTime - jumpStartTime) / 1000;
           player.rotation.y = (elapsed / expectedJumpDuration) * 2 * Math.PI;
 
-          // When the player lands, reset jump and spin parameters
+          flameGroup.visible = true;
+          flameGroup.children.forEach((cone, index) => {
+            let scale = 0.8 + 0.3 * Math.abs(Math.sin(currentTime / 200 + index));
+            cone.scale.set(scale, scale, scale);
+            cone.rotation.z += 0.05 * dt;
+            cone.material.opacity = 0.7 + 0.3 * Math.sin(currentTime / 200 + index);
+          });
           if (player.position.y <= 0) {
-            player.position.y = 0;
+            player.position.y = 0.5;
             isJumping = false;
             jumpVelocity = 0;
-            player.rotation.y = 0; // reset horizontal rotation to the original orientation
+            player.rotation.y = 0;
+            flameGroup.visible = false;
           }
+        } else {
+          flameGroup.visible = false;
         }
 
         // Update obstacles
@@ -646,7 +672,7 @@ Your High Score: 0
           }
         }
 
-        // Update orbs and handle power-ups
+        // Update orbs
         for (let i = orbs.length - 1; i >= 0; i--) {
           const orb = orbs[i];
           orb.position.z += gameSpeed * (deltaTime / 16.67);
@@ -668,11 +694,11 @@ Your High Score: 0
             lastOrbTime = performance.now();
             if (orb.userData.isPower) {
               invincible = true;
-              invincibleTimer = 10000; // 10 seconds of invincibility
-              player.children[0].material.color.set(0xFFD700);
+              invincibleTimer = 10000;
+              player.children[2].material.color.set(0xFFD700);
               if (!playerOutline) {
-                const outlineGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(3, 1.5, 5));
-                const outlineMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+                const outlineGeo = new THREE.EdgesGeometry(new THREE.CylinderGeometry(1.7, 1.7, 1.8, 32));
+                const outlineMat = new THREE.LineBasicMaterial({ color: 0x66ccff });
                 playerOutline = new THREE.LineSegments(outlineGeo, outlineMat);
                 playerOutline.renderOrder = 1;
                 outlineHue = 0;
@@ -685,24 +711,15 @@ Your High Score: 0
           }
         }
 
-        // Update holes (ignored if invincible)
-        for (let i = holes.length - 1; i >= 0; i--) {
-          const hole = holes[i];
-          hole.position.z += gameSpeed * (deltaTime / 16.67);
-          if (hole.position.z > camera.position.z + 10) {
-            scene.remove(hole);
-            holes.splice(i, 1);
-          } else {
-            const halfWidth = hole.userData.width / 2;
-            const halfDepth = hole.userData.depth / 2;
-            if (!invincible &&
-                player.position.y <= 0.1 &&
-                player.position.x >= hole.position.x - halfWidth &&
-                player.position.x <= hole.position.x + halfWidth &&
-                player.position.z >= hole.position.z - halfDepth &&
-                player.position.z <= hole.position.z + halfDepth) {
-              triggerGameOver();
-            }
+        // Update poles
+        for (let i = poles.length - 1; i >= 0; i--) {
+          const pole = poles[i];
+          pole.position.z += gameSpeed * (deltaTime / 16.67);
+          if (pole.position.z > camera.position.z + 10) {
+            scene.remove(pole);
+            poles.splice(i, 1);
+          } else if (!invincible && checkCollisions(pole)) {
+            triggerGameOver();
           }
         }
 
@@ -713,15 +730,17 @@ Your High Score: 0
           if (airObs.position.z > camera.position.z + 10) {
             scene.remove(airObs);
             airObstacles.splice(i, 1);
-          } else if (!invincible && checkCollisions(airObs)) {
-            triggerGameOver();
+          } else {
+            if (!invincible && checkCollisions(airObs)) {
+              triggerGameOver();
+            }
           }
         }
 
-        // Update spawn timers
+        // Spawn timers
         obstacleTimer -= deltaTime;
         orbTimer -= deltaTime;
-        holeTimer -= deltaTime;
+        poleTimer -= deltaTime;
         airObstacleTimer -= deltaTime;
         if (obstacleTimer <= 0) {
           generateObstacle();
@@ -731,9 +750,9 @@ Your High Score: 0
           generateOrb();
           orbTimer = Math.max(1000, baseOrbInterval - Math.floor(score / 20));
         }
-        if (holeTimer <= 0) {
-          generateHole();
-          holeTimer = baseHoleInterval;
+        if (poleTimer <= 0) {
+          generatePole();
+          poleTimer = basePoleInterval;
         }
         if (airObstacleTimer <= 0) {
           generateAirObstacle();
@@ -752,7 +771,6 @@ Your High Score: 0
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Attach keydown event to the window for broader compatibility
     window.addEventListener("keydown", onKeyDown);
 
     init();
