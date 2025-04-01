@@ -145,26 +145,11 @@
     </div>
     <div id="powerText">POWERED UP!</div>
     <div id="overlay">
-      <div id="overlayText">
-Welcome to Creative Surge!
-
-Press Spacebar to Start
-(Press P to pause/resume)
-
-Instructions:
-• Use Left/Right arrows or A/D to move  
-  (or move your mouse/touch the screen for smooth control)
-• Press Spacebar or click/tap to jump
-• Collect yellow orbs (some are RAINBOW power orbs) for bonus points  
-  (RAINBOW orbs grant temporary invincibility & boost your combo!)
-• Avoid red meteorites, red space poles, and red debris!
-
-Your High Score: 0
-      </div>
+      <div id="overlayText"></div>
     </div>
   </div>
 
-  <!-- Background Music: A futuristic-sounding track from Mixkit (music will play only when user clicks the icon) -->
+  <!-- Background Music: A futuristic-sounding track from Mixkit (music plays only when user clicks the icon) -->
   <audio id="bgMusic" loop playsinline muted>
     <source src="bgmusic.mp3" type="audio/mpeg">
   </audio>
@@ -367,27 +352,43 @@ Your High Score: 0
         }
       });
     
-      // Overlay instructions
-      if (gameState === "start") {
-        const overlayText = document.getElementById("overlayText");
-        overlayText.innerText =
+      // Set overlay instructions based on device type
+      const overlayText = document.getElementById("overlayText");
+      let instructions = "";
+      if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        // Mobile instructions
+        instructions =
+          "Welcome to Creative Surge!\n\n" +
+          "Tap to Start\n" +
+          "(Tap P to pause/resume)\n\n" +
+          "Instructions (Mobile):\n" +
+          "• Swipe left/right or touch the screen to move\n" +
+          "• Tap to jump\n" +
+          "• Collect yellow orbs (some are RAINBOW power orbs) for bonus points\n" +
+          "  (RAINBOW orbs grant temporary invincibility & boost your combo!)\n" +
+          "• Avoid red meteorites, red space poles, and red debris!\n\n" +
+          "Your High Score: " + localHighScore;
+      } else {
+        // Desktop instructions
+        instructions =
           "Welcome to Creative Surge!\n\n" +
           "Press Spacebar to Start\n" +
           "(Press P to pause/resume)\n\n" +
-          "Instructions:\n" +
-          "• Use Left/Right arrows or A/D to move (or use mouse/touch for smooth control)\n" +
-          "• Press Spacebar or click/tap to jump\n" +
+          "Instructions (Desktop):\n" +
+          "• Use Left/Right arrows or A/D to move (or use mouse for smooth control)\n" +
+          "• Press Spacebar or click to jump\n" +
           "• Collect yellow orbs (some are RAINBOW power orbs) for bonus points\n" +
           "  (RAINBOW orbs grant temporary invincibility & boost your combo!)\n" +
           "• Avoid red meteorites, red space poles, and red debris!\n\n" +
           "Your High Score: " + localHighScore;
       }
+      overlayText.innerText = instructions;
     
       // Pause icon event listener
       document.getElementById("pauseIcon").addEventListener("click", () => {
         if (gameState === "playing") {
           gameState = "paused";
-          document.getElementById("overlayText").innerText = "Paused\n\nPress P to resume";
+          overlayText.innerText = "Paused\n\nPress P to resume";
           document.getElementById("overlay").style.display = "flex";
         } else if (gameState === "paused") {
           gameState = "playing";
