@@ -138,8 +138,8 @@
     <div id="score">Score: 0 | Multiplier: x1</div>
     <!-- Pause icon on top right -->
     <div id="pauseIcon">P</div>
-    <!-- Music control icon on top right -->
-    <div id="musicIcon">♪</div>
+    <!-- Music control icon on top right (default muted) -->
+    <div id="musicIcon">🔇</div>
     <div id="powerBarContainer">
       <div id="powerBar"></div>
     </div>
@@ -154,7 +154,7 @@ Press Spacebar to Start
 Instructions:
 • Use Left/Right arrows or A/D to move  
   (or move your mouse/touch the screen for smooth control)
-• Press Spacebar or click/tap to jump (with a 360° spin!)
+• Press Spacebar or click/tap to jump
 • Collect yellow orbs (some are RAINBOW power orbs) for bonus points  
   (RAINBOW orbs grant temporary invincibility & boost your combo!)
 • Avoid red meteorites, red space poles, and red debris!
@@ -164,9 +164,9 @@ Your High Score: 0
     </div>
   </div>
 
-  <!-- Background Music: A futuristic-sounding track from Mixkit -->
-  <audio id="bgMusic" loop autoplay playsinline>
-    <source src="bgmusic.mp3" type ="audio/mpeg">
+  <!-- Background Music: A futuristic-sounding track from Mixkit (music will play only when user clicks the icon) -->
+  <audio id="bgMusic" loop playsinline muted>
+    <source src="bgmusic.mp3" type="audio/mpeg">
   </audio>
 
   <!-- Entrant link -->
@@ -376,7 +376,7 @@ Your High Score: 0
           "(Press P to pause/resume)\n\n" +
           "Instructions:\n" +
           "• Use Left/Right arrows or A/D to move (or use mouse/touch for smooth control)\n" +
-          "• Press Spacebar or click/tap to jump (with a 360° spin!)\n" +
+          "• Press Spacebar or click/tap to jump\n" +
           "• Collect yellow orbs (some are RAINBOW power orbs) for bonus points\n" +
           "  (RAINBOW orbs grant temporary invincibility & boost your combo!)\n" +
           "• Avoid red meteorites, red space poles, and red debris!\n\n" +
@@ -398,13 +398,19 @@ Your High Score: 0
       animate();
     }
     
-    // Music control event listener
+    // Music control event listener – music starts only when the user clicks the icon
     const musicIcon = document.getElementById("musicIcon");
     const bgMusic = document.getElementById("bgMusic");
     musicIcon.addEventListener("click", () => {
-      bgMusic.muted = !bgMusic.muted;
-      // Change icon to indicate muted state
-      musicIcon.innerText = bgMusic.muted ? "🔇" : "♪";
+      if (bgMusic.paused) {
+        bgMusic.muted = false;
+        bgMusic.play();
+        musicIcon.innerText = "♪";
+      } else {
+        bgMusic.pause();
+        bgMusic.muted = true;
+        musicIcon.innerText = "🔇";
+      }
     });
     
     function startCountdown() {
