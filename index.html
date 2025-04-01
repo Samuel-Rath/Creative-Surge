@@ -145,11 +145,26 @@
     </div>
     <div id="powerText">POWERED UP!</div>
     <div id="overlay">
-      <div id="overlayText"></div>
+      <div id="overlayText">
+Welcome to Creative Surge!
+
+Press Spacebar to Start
+(Press P to pause/resume)
+
+Instructions:
+• Use Left/Right arrows or A/D to move  
+  (or move your mouse/touch the screen for smooth control)
+• Press Spacebar or click/tap to jump
+• Collect yellow orbs (some are RAINBOW power orbs) for bonus points  
+  (RAINBOW orbs grant temporary invincibility & boost your combo!)
+• Avoid red meteorites, red space poles, and red debris!
+
+Your High Score: 0
+      </div>
     </div>
   </div>
 
-  <!-- Background Music: A futuristic-sounding track (plays only when user clicks the icon) -->
+  <!-- Background Music: A futuristic-sounding track from Mixkit (music will play only when user clicks the icon) -->
   <audio id="bgMusic" loop playsinline muted>
     <source src="bgmusic.mp3" type="audio/mpeg">
   </audio>
@@ -221,10 +236,6 @@
     
     // Flame group for jump effect
     let flameGroup;
-    
-    // Variables for mobile touch detection
-    let touchStartX = 0;
-    let touchStartY = 0;
     
     function init() {
       scene = new THREE.Scene();
@@ -331,7 +342,7 @@
       // Track horizontal target position
       window.targetX = player.position.x;
     
-      // Mouse controls for desktop
+      // Mouse/touch controls
       const canvasElement = document.getElementById("gameCanvas");
       canvasElement.addEventListener("mousemove", (e) => {
         let mouseX = e.offsetX;
@@ -339,9 +350,6 @@
         window.targetX = (mouseX / width) * roadWidth - halfRoadWidth;
         window.targetX = Math.min(Math.max(window.targetX, -maxPlayerX), maxPlayerX);
       });
-    
-      // Mobile controls
-      // Update targetX on touchmove
       canvasElement.addEventListener("touchmove", (e) => {
         let touch = e.touches[0];
         let rect = e.target.getBoundingClientRect();
@@ -351,30 +359,6 @@
         window.targetX = Math.min(Math.max(window.targetX, -maxPlayerX), maxPlayerX);
         e.preventDefault();
       });
-      // Record starting touch position
-      canvasElement.addEventListener("touchstart", (e) => {
-        const touch = e.touches[0];
-        touchStartX = touch.clientX;
-        touchStartY = touch.clientY;
-      });
-      // On touchend, if movement is minimal, trigger jump (or start game if in start state)
-      canvasElement.addEventListener("touchend", (e) => {
-        const touch = e.changedTouches[0];
-        const dx = touch.clientX - touchStartX;
-        const dy = touch.clientY - touchStartY;
-        const distance = Math.sqrt(dx*dx + dy*dy);
-        if (distance < 10) {
-          if (gameState === "start") {
-            startCountdown();
-          } else if (gameState === "playing" && !isJumping) {
-            isJumping = true;
-            jumpVelocity = 12;
-            jumpStartTime = performance.now();
-          }
-        }
-      });
-    
-      // Desktop click to jump (optional)
       canvasElement.addEventListener("click", () => {
         if (gameState === "playing" && !isJumping) {
           isJumping = true;
@@ -383,41 +367,27 @@
         }
       });
     
-      // Set overlay instructions based on device type
-      const overlayText = document.getElementById("overlayText");
-      let instructions = "";
-      if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-        instructions =
-          "Welcome to Creative Surge!\n\n" +
-          "Tap to Start\n" +
-          "(Tap P to pause/resume)\n\n" +
-          "Instructions (Mobile):\n" +
-          "• Swipe left/right or touch the screen to move\n" +
-          "• Tap to jump\n" +
-          "• Collect yellow orbs (some are RAINBOW power orbs) for bonus points\n" +
-          "  (RAINBOW orbs grant temporary invincibility & boost your combo!)\n" +
-          "• Avoid red meteorites, red space poles, and red debris!\n\n" +
-          "Your High Score: " + localHighScore;
-      } else {
-        instructions =
+      // Overlay instructions
+      if (gameState === "start") {
+        const overlayText = document.getElementById("overlayText");
+        overlayText.innerText =
           "Welcome to Creative Surge!\n\n" +
           "Press Spacebar to Start\n" +
           "(Press P to pause/resume)\n\n" +
-          "Instructions (Desktop):\n" +
-          "• Use Left/Right arrows or A/D to move (or use mouse for smooth control)\n" +
-          "• Press Spacebar or click to jump\n" +
+          "Instructions:\n" +
+          "• Use Left/Right arrows or A/D to move (or use mouse/touch for smooth control)\n" +
+          "• Press Spacebar or click/tap to jump\n" +
           "• Collect yellow orbs (some are RAINBOW power orbs) for bonus points\n" +
           "  (RAINBOW orbs grant temporary invincibility & boost your combo!)\n" +
           "• Avoid red meteorites, red space poles, and red debris!\n\n" +
           "Your High Score: " + localHighScore;
       }
-      overlayText.innerText = instructions;
     
       // Pause icon event listener
       document.getElementById("pauseIcon").addEventListener("click", () => {
         if (gameState === "playing") {
           gameState = "paused";
-          overlayText.innerText = "Paused\n\nPress P to resume";
+          document.getElementById("overlayText").innerText = "Paused\n\nPress P to resume";
           document.getElementById("overlay").style.display = "flex";
         } else if (gameState === "paused") {
           gameState = "playing";
@@ -547,19 +517,28 @@
     // -- IMPORTANT: Removed any rotation on the cylinder so it stays upright --
     function generateAirObstacle() {
       const shipGroup = new THREE.Group();
+    
+      // Cylinder body, left upright (no rotation.x).
       const bodyGeo = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 16);
       const bodyMat = new THREE.MeshPhongMaterial({ color: 0xff4444, flatShading: true });
       const body = new THREE.Mesh(bodyGeo, bodyMat);
       shipGroup.add(body);
+    
+      // Nose cone (optional)
       const noseGeo = new THREE.ConeGeometry(0.4, 0.8, 16);
       const noseMat = new THREE.MeshPhongMaterial({ color: 0xff2222, flatShading: true });
       const nose = new THREE.Mesh(noseGeo, noseMat);
       nose.position.y = 1.0; 
       shipGroup.add(nose);
+    
+      // Position the entire group behind the player
       shipGroup.position.x = (Math.random() - 0.5) * roadWidth;
       shipGroup.position.y = 3.5;
       shipGroup.position.z = player.position.z - 150;
+    
+      // Randomise heading if desired
       shipGroup.rotation.y = Math.random() * Math.PI * 2;
+    
       shipGroup.userData.type = "airObstacle";
       scene.add(shipGroup);
       airObstacles.push(shipGroup);
@@ -641,15 +620,18 @@
       lastTime = currentTime;
     
       if (gameState === "playing") {
+        // Update score.
         score += gameSpeed * (deltaTime / 16.67);
         document.getElementById("score").innerText =
           "Score: " + Math.floor(score) + " | Multiplier: x" + comboMultiplier;
     
+        // Move background grid.
         backgroundGrid.position.z += gameSpeed * (deltaTime / 16.67);
         if (backgroundGrid.position.z > camera.position.z + 50) {
           backgroundGrid.position.z -= 200;
         }
     
+        // Handle invincibility effects.
         if (invincible) {
           invincibleTimer -= deltaTime;
           if (playerOutline) {
@@ -681,9 +663,11 @@
           document.getElementById("powerText").style.display = "none";
         }
     
+        // Smooth horizontal movement.
         player.position.x += (window.targetX - player.position.x) * 0.3;
         camera.position.x += (player.position.x - camera.position.x) * 0.3;
     
+        // Jump mechanics – only vertical motion; the model remains upright.
         if (isJumping) {
           const dt = deltaTime / 1000;
           jumpVelocity += gravity * dt;
@@ -697,6 +681,7 @@
             cone.material.opacity = 0.7 + 0.3 * Math.sin(currentTime / 200 + index);
           });
     
+          // End jump if we hit the ground.
           if (player.position.y <= 0) {
             player.position.y = 0.5;
             isJumping = false;
@@ -707,6 +692,7 @@
           flameGroup.visible = false;
         }
     
+        // Update obstacles.
         for (let i = obstacles.length - 1; i >= 0; i--) {
           const obs = obstacles[i];
           obs.position.z += gameSpeed * (deltaTime / 16.67);
@@ -720,6 +706,7 @@
           }
         }
     
+        // Update orbs.
         for (let i = orbs.length - 1; i >= 0; i--) {
           const orb = orbs[i];
           orb.position.z += gameSpeed * (deltaTime / 16.67);
@@ -733,6 +720,7 @@
             scene.remove(orb);
             orbs.splice(i, 1);
           } else if (checkCollisions(orb)) {
+            // Combo logic.
             if (performance.now() - lastOrbTime < 1000) {
               comboMultiplier++;
             } else {
@@ -740,11 +728,13 @@
             }
             lastOrbTime = performance.now();
     
+            // Power orb.
             if (orb.userData.isPower) {
               invincible = true;
               invincibleTimer = 10000;
               domeMesh.material.color.set(0xFFD700);
               if (!playerOutline) {
+                // Outline that rotates with the player.
                 const outlineGeo = new THREE.EdgesGeometry(
                   new THREE.CylinderGeometry(1.7, 1.7, 1.8, 32)
                 );
@@ -762,6 +752,7 @@
           }
         }
     
+        // Update poles.
         for (let i = poles.length - 1; i >= 0; i--) {
           const pole = poles[i];
           pole.position.z += gameSpeed * (deltaTime / 16.67);
@@ -773,6 +764,7 @@
           }
         }
     
+        // Update air obstacles.
         for (let i = airObstacles.length - 1; i >= 0; i--) {
           const airObs = airObstacles[i];
           airObs.position.z += gameSpeed * (deltaTime / 16.67);
@@ -784,6 +776,7 @@
           }
         }
     
+        // Spawn timers.
         obstacleTimer -= deltaTime;
         orbTimer -= deltaTime;
         poleTimer -= deltaTime;
@@ -805,6 +798,7 @@
           airObstacleTimer = baseAirObstacleInterval;
         }
     
+        // Gradually increase game speed.
         gameSpeed += 0.0001 * deltaTime;
       }
     
